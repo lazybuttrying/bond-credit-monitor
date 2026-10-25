@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사건별 시장 반응 — 회사채 신용 스프레드 모니터</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         margin: 0; padding: 16px; background: #f7f8fa; color: #1a1a1a; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  a { color: #2563eb; text-decoration: none; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  .events { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .events button { padding: 8px 14px; border: 1px solid #ddd; border-radius: 20px;
+                   background: #fff; cursor: pointer; font-size: 14px; }
+  .events button.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .topic { font-size: 14.5px; line-height: 1.9; margin: 0 0 4px; padding-left: 20px; }
+  .stats { font-size: 13px; color: #666; margin: 12px 0 4px; }
+  .verdict { font-size: 15px; font-weight: 700; margin: 12px 0 4px; line-height: 1.6; }
+  .chart-title { font-size: 15px; margin: 18px 0 4px; }
+  .chart-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 8px; }
+  .src-title { font-size: 15px; margin: 18px 0 8px; }
+  .sources { font-size: 14px; line-height: 2.0; margin: 0; padding-left: 20px; }
+  .sources .meta { color: #888; font-size: 12.5px; }
+  .note { font-size: 12px; color: #888; margin-top: 12px; line-height: 1.6; }
+  .foot { text-align: center; color: #888; font-size: 13px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div><a href="../">← 모니터로 돌아가기</a></div>
+  <h1>사건별 시장 반응</h1>
+  <div class="events" id="eventBtns"></div>
+
+  <div class="card">
+    <h2 id="eventTitle"></h2>
+    <ul class="topic" id="topicList"></ul>
+    <div class="verdict" id="verdictLine"></div>
+    <div class="stats" id="statsLine"></div>
+    <h3 class="chart-title">차트: 사건 전후 국고채·상업은행채·일반회사채 스프레드 (bp)</h3>
+    <div class="chart-desc">실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.</div>
+    <div id="chart"></div>
+    <div id="extraWrap" style="display:none">
+      <h3 class="chart-title" id="extraTitle"></h3>
+      <div class="chart-desc" id="extraDesc"></div>
+      <div id="chart2"></div>
+    </div>
+    <div class="note" id="noteLine" style="display:none"></div>
+    <h3 class="src-title">인용 기사</h3>
+    <ul class="sources" id="srcList"></ul>
+  </div>
+
+  <div class="note">뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.</div>
+  <div class="foot"><a href="https://sdykim.me/">sdykim.me</a> · Doyeon Kim</div>
+</div>
+
+<script>
+window.EVENTS_DATA = /*EVENTS_JSON*/;
+</script>
+<script>
+const EVENTS = window.EVENTS_DATA.events;
+const btnWrap = document.getElementById('eventBtns');
+EVENTS.forEach(ev => {
+  const b = document.createElement('button');
+  b.textContent = ev.title;
+  b.dataset.id = ev.id;
+  b.addEventListener('click', () => render(ev.id));
+  btnWrap.appendChild(b);
+});
+const GROUP_STYLE = {
+  market: { width: 2, color: '#666', dash: 'dot' },
+  ktb: { width: 2, color: '#16a34a' },
+  bank: { width: 2, color: '#2563eb' },
+  corp: { width: 2, color: '#9333ea' },
+};
+const GROUP_NAME = { market: '시장 중앙값 (점선)', ktb: '국고채', bank: '상업은행채', corp: '일반회사채' };
+const EXTRA_STYLE = {
+  market: { width: 2, color: '#666', dash: 'dot' },
+  reit: { width: 2, color: '#16a34a' },
+  construct: { width: 2, color: '#ca8a04' },
+  estate: { width: 2, color: '#9333ea' },
+  sll: { width: 2, color: '#dc2626' },
+  sbs: { width: 2, color: '#2563eb' },
+  cb: { width: 2, color: '#dc2626' },
+};
+const EXTRA_NAME = { market: '시장 중앙값 (점선)', reit: '타리츠', construct: '건설업', estate: '부동산업', sll: 'SLL중앙', sbs: 'SBS', cb: '중앙일보' };
+function render(id) {
+  document.querySelectorAll('#eventBtns button').forEach(b =>
+    b.classList.toggle('on', b.dataset.id === id));
+  const ev = EVENTS.find(e => e.id === id);
+  document.getElementById('eventTitle').textContent = ev.title + ' (' + ev.date_label + ')';
+  document.getElementById('topicList').innerHTML =
+    ev.topic.map(t => `<li>${t}</li>`).join('');
+  document.getElementById('verdictLine').textContent = ev.verdict;
+  document.getElementById('statsLine').textContent = ev.stats;
+  document.getElementById('srcList').innerHTML =
+    ev.sources.map(s =>
+      `<li><a href="${s.url}" target="_blank" rel="noopener">${s.topic}</a> <span class="meta">${s.outlet} ${s.date}</span></li>`).join('');
+  const noteEl = document.getElementById('noteLine');
+  if (ev.note) { noteEl.textContent = ev.note; noteEl.style.display = 'block'; }
+  else { noteEl.style.display = 'none'; }
+  const el = document.getElementById('chart');
+  try {
+    if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
+    const traces = ['market', 'ktb', 'bank', 'corp'].map(k => ({
+      x: ev.dates, y: ev.series[k], mode: 'lines', name: GROUP_NAME[k], line: GROUP_STYLE[k]
+    }));
+    const shapes = ev.markers.map(mk => ({
+      type: 'line', x0: mk.date, x1: mk.date, y0: 0, y1: 1, yref: 'paper',
+      line: { color: mk.color, width: 1.5, dash: 'dash' }
+    }));
+    const annotations = ev.markers.map(mk => ({
+      x: mk.date, y: 1, yref: 'paper', text: mk.label, showarrow: false,
+      font: { size: 11, color: mk.color }
+    }));
+    Plotly.newPlot('chart', traces, {
+      margin: { t: 20, r: 10, b: 40, l: 50 },
+      yaxis: { title: 'bp' }, height: 360,
+      shapes: shapes, annotations: annotations
+    }, { displayModeBar: false, responsive: true });
+  } catch (e) {
+    el.innerHTML = '<div style="color:#666;font-size:14px;padding:16px 0;">차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).</div>';
+  }
+  const extraWrap = document.getElementById('extraWrap');
+  if (ev.extra) {
+    extraWrap.style.display = 'block';
+    document.getElementById('extraTitle').textContent = ev.extra.title;
+    document.getElementById('extraDesc').textContent = ev.extra.desc;
+    const el2 = document.getElementById('chart2');
+    try {
+      if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
+      const keys = ev.extra.keys.concat(['market']);
+      const x2 = ev.extra.dates || ev.dates;
+      const traces2 = keys.map(k => ({
+        x: x2, y: ev.extra.series[k], mode: 'lines+markers',
+        name: EXTRA_NAME[k], line: EXTRA_STYLE[k],
+        marker: { size: 3, color: EXTRA_STYLE[k].color }
+      }));
+      const shapes2 = (ev.extra.markers || []).map(mk => ({
+        type: 'line', x0: mk.date, x1: mk.date, y0: 0, y1: 1, yref: 'paper',
+        line: { color: mk.color, width: 1.5, dash: 'dash' }
+      }));
+      const annotations2 = (ev.extra.markers || []).map(mk => ({
+        x: mk.date, y: 1, yref: 'paper', text: mk.label, showarrow: false,
+        font: { size: 11, color: mk.color }
+      }));
+      Plotly.newPlot('chart2', traces2, {
+        margin: { t: 20, r: 10, b: 40, l: 50 },
+        yaxis: { title: 'bp' }, height: 320,
+        shapes: shapes2, annotations: annotations2
+      }, { displayModeBar: false, responsive: true });
+    } catch (e) {
+      el2.innerHTML = '<div style="color:#666;font-size:14px;padding:16px 0;">차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).</div>';
+    }
+  } else {
+    extraWrap.style.display = 'none';
+  }
+}
+render(EVENTS[0].id);
+</script>
+</body>
+</html>
