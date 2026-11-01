@@ -96,12 +96,12 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+<!--NAV-->
   <div style="display:flex;justify-content:space-between;align-items:center">
     <h1 data-i18n="title">발행자 스프레드 추이</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
   <div class="sub">/*META_LINE*/</div>
-  <div style="margin-bottom:16px"><a class="back" style="margin:0" href="../" data-i18n="back">← 오늘자 스프레드 모니터</a></div>
   <div id="sections"></div>
   <div class="note" data-i18n="note">20거래일 이동중앙값 기준이라 단기 노이즈가 제거됨.
   단기 = 잔존기간 1년 이하, 장기 = 1년 초과. 같은 회사의 단기 스프레드가 치솟으면
@@ -214,6 +214,9 @@ def build_page():
     meta = (f"최근 {DAYS}거래일 ({iss['meta']['first_date']} ~ {iss['meta']['last_date']}) · "
             f"20거래일 이동중앙값 · 유동성 상위 발행자")
     html = HTML.replace("/*META_LINE*/", meta)
+    nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
+    assert "<!--NAV-->" in html
+    html = html.replace("<!--NAV-->", nav)
     outdir = os.path.join(DATA, "github_pages", "trends")
     os.makedirs(outdir, exist_ok=True)
     with open(os.path.join(outdir, "index.html"), "w") as f:

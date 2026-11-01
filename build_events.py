@@ -48,6 +48,8 @@ def group_of(issuer, industry_fn):
     if issuer == "중앙일보":
         return "cb"
     ind = industry_fn(issuer)
+    if ind == "정책금융":
+        return "policy"
     if ind == "은행":
         return "bank"
     if ind == "일반기업":
@@ -149,10 +151,31 @@ EVENTS = [
             {"date": "2026-09-15", "label": "고점", "color": "#9333ea"},
         ],
     },
+    {
+        "id": "kofr-loans",
+        "title": "10/26 KOFR 기반 기업대출 출시",
+        "date_label": "2026년 10월 26일 (사전 베이스라인)",
+        "window": "pre",
+        "topic": ["산업은행과 기업은행이 KOFR 기반 기업대출을 시작, 각 5천억원씩 합계 1조원",
+                  "기준금리는 30일 평균 KOFR, 만기 최대 1년, 지방 중소기업 우대금리 적용",
+                  "가계대출 적용은 아직 논의 중이라 후속 관찰 항목이다"],
+        "sources": [
+            src("서울경제", "2026-10-25", "Korea Launches First KOFR-Based Corporate Loans, Household Rollout Pending",
+                "https://en.sedaily.com/finance/2026/10/25/korea-launches-first-kofr-based-corporate-loans-household"),
+        ],
+        "verdict_qual": "사전 카드다. 거래 데이터가 2026-10-20에서 멈춰 있어 사건일(10-26) 이후 구간은 아직 없다. 사건 후 판정은 데이터 복구 뒤 20거래일이 지난 뒤 확정한다",
+        "markers": [],
+        "chart_title": "차트: 사건 전 60거래일 국고채·상업은행채·일반회사채 스프레드 (bp)",
+        "chart_desc": "실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다. 사건일 이후 구간은 데이터 복구되는 대로 붙는다.",
+        "extra_title": "정책금융채 스프레드 (bp)",
+        "extra_keys": ["policy"],
+        "extra_desc": "정책금융채는 산업금융채권(산업은행), 중소기업은행(기업은행) 등 정책금융 발행자 기준이다. 대출 주체가 정책금융기관이라 별도 차트로 분리했다. 점선은 시장 전체 중앙값이다.",
+        "note": "이 카드는 사건 전 60거래일(2026-07-22~2026-10-20) 사전 베이스라인이다. 사건 후 60거래일 차트와 전후 20일 중앙값 판정 수치는 데이터 복구 후 업데이트한다.",
+    },
 ]
 
 GROUPS = ("market", "ktb", "bank", "corp", "reit", "construct", "estate",
-          "sll", "sbs", "cb")
+          "sll", "sbs", "cb", "policy")
 
 
 def compute_series():
@@ -218,6 +241,8 @@ def main():
         if ev["window"] == "around":
             c = idx[ev["center"]]
             return dates[max(0, c - 60):c + 61]
+        if ev["window"] == "pre":
+            return dates[-60:]
         c0 = idx[ev["start_center"]]
         c1 = idx[ev["end_center"]]
         return dates[max(0, c0 - 60):c1 + 61]
@@ -243,6 +268,11 @@ def main():
                         if d.startswith(ev["month"])]
             stats = (f"3월 한 달 시장 중앙값 {mar_vals[0]}bp → "
                      f"{mar_vals[-1]}bp")
+        elif ev["window"] == "pre":
+            pre = median([series[d]["market"] for d in dates[-20:]])
+            stats = (f"사건 전 20일 시장 중앙값 {pre}bp "
+                     f"(데이터 마지막 거래일 {fmt(dates[-1])}, "
+                     f"사건 후 구간은 데이터 복구 후 추가)")
         else:
             f20 = median([series[d]["market"] for d in win[:20]])
             l20 = median([series[d]["market"] for d in win[-20:]])
@@ -272,6 +302,10 @@ def main():
             "series": {k: s[k] for k in ("market", "ktb", "bank", "corp")},
             "markers": markers,
         }
+        if ev.get("chart_title"):
+            out["chart_title"] = ev["chart_title"]
+        if ev.get("chart_desc"):
+            out["chart_desc"] = ev["chart_desc"]
         if "extra_keys" in ev:
             if ev.get("extra_full_year"):
                 edates = dates
@@ -295,6 +329,9 @@ def main():
     assert "/*EVENTS_JSON*/" in tpl
     html = tpl.replace("/*EVENTS_JSON*/", payload)
     assert "EVENTS_JSON" not in html
+    nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
+    assert "<!--NAV-->" in html
+    html = html.replace("<!--NAV-->", nav)
     with open(os.path.join(MONTHLY_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
     print("wrote index.html", len(html.encode("utf-8")), "bytes")

@@ -82,6 +82,7 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+<!--NAV-->
   <div style="display:flex;justify-content:space-between;align-items:center">
     <h1 data-i18n="title">회사채 신용 스프레드 모니터</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
@@ -94,7 +95,7 @@ HTML = """<!DOCTYPE html>
   </div>
 
   <div class="card">
-    <h2><span data-i18n="trend_title">발행자 추이</span> <span style="font-weight:400;font-size:12px"><a href="./trends/" data-i18n="trends_link">산업별 전체 추이 →</a> · <a href="./concepts/" data-i18n="concepts_link">신용평가 개념 가이드 →</a> · <a href="./structure/" data-i18n="structure_link">차환 리스크·등급 내 분산 →</a> · <a href="./divergence/" data-i18n="divergence_link">신용-주식 괴리 →</a> · <a href="./monthly/" data-i18n="monthly_link">월별 뉴스와 차트 →</a></span></h2>
+    <h2 data-i18n="trend_title">발행자 추이</h2>
     <select id="issuerSel"></select>
     <div id="ts"></div>
   </div>
@@ -153,11 +154,13 @@ ko: {
   th_chg5d: "5일변화", th_chg20d: "20일변화", th_n: "거래건수", th_z: "정상대비(z)",
   table_note: "스프레드 = 회사채 수익률 − 잔존기간 매칭 국채 수익률 (거래대금 가중평균). 동급대비 = 동일 신용등급 발행자들의 중간값 대비 괴리. 양수 = 동급보다 위험하게 거래됨.",
   trend_title: "발행자 추이",
-  trends_link: "산업별 전체 추이 →",
-  concepts_link: "신용평가 개념 가이드 →",
-  structure_link: "차환 리스크·등급 내 분산 →",
-  divergence_link: "신용-주식 괴리 →",
-  monthly_link: "사건별 시장 반응 →",
+  nav_monitor: "모니터",
+  nav_trends: "산업별 전체 추이",
+  nav_concepts: "신용평가 개념 가이드",
+  nav_structure: "차환 리스크·등급 내 분산",
+  nav_divergence: "신용-주식 괴리",
+  nav_monthly: "사건별 시장 반응",
+  nav_intraday: "장중 체결 흐름",
   rating_title: "최근 등급 변경",
   rating_note: "KOFIA 거래 데이터의 종목별 신용등급 변화를 종목 단위로 추적해 탐지. 등급은 평가사 발표 후 거래 데이터에 반영된 날짜 기준이며, 2거래일 이상 지속된 변화만 확정으로 표시.",
   rating_none: "탐지된 등급 변경 없음",
@@ -210,11 +213,13 @@ en: {
   th_chg5d: "5d Chg", th_chg20d: "20d Chg", th_n: "Trades", th_z: "vs Normal(z)",
   table_note: "Spread = corporate yield − tenor-matched KTB yield (amount-weighted). vs Peer = deviation from same-rating median. Positive = trading riskier than peers.",
   trend_title: "Issuer Trends",
-  trends_link: "All trends by industry →",
-  concepts_link: "Credit concepts guide →",
-  structure_link: "Refinancing & dispersion →",
-  divergence_link: "Credit-equity divergence →",
-  monthly_link: "Market moves by event →",
+  nav_monitor: "Monitor",
+  nav_trends: "All trends by industry",
+  nav_concepts: "Credit concepts guide",
+  nav_structure: "Refinancing & dispersion",
+  nav_divergence: "Credit-equity divergence",
+  nav_monthly: "Market moves by event",
+  nav_intraday: "Intraday trade flow",
   rating_title: "Recent Rating Changes",
   rating_note: "Detected by tracking per-bond rating changes in KOFIA trade data. Dates are when the change appeared in trade data after the agency announcement; only changes persisting 2+ trading days are confirmed.",
   rating_none: "No rating changes detected",
@@ -722,6 +727,9 @@ def main():
     html = html.replace("/*BONDS_JSON*/", json.dumps(bonds, ensure_ascii=False))
     html = html.replace("/*META_JSON*/", json.dumps(meta))
     html = html.replace("/*RATING_JSON*/", json.dumps(build_rating_payload(iss), ensure_ascii=False))
+    nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
+    assert "<!--NAV-->" in html
+    html = html.replace("<!--NAV-->", nav)
     with open(OUT, "w") as f:
         f.write(html)
     print("wrote", OUT, f"{os.path.getsize(OUT)/1024:.0f}KB")
@@ -794,6 +802,9 @@ def build_github(out_dir):
     # bonds.js already sets window.BONDS; leaving the placeholder line would be
     # a syntax error (assignment with no value) that kills the whole script.
     html = html.replace("window.BONDS = /*BONDS_JSON*/;\n", "")
+    nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
+    assert "<!--NAV-->" in html
+    html = html.replace("<!--NAV-->", nav)
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "data.js"), "w") as f:
         f.write("window.DASHBOARD_DATA = ")

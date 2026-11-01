@@ -195,15 +195,12 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+<!--NAV-->
   <div style="display:flex;justify-content:space-between;align-items:center">
     <h1 data-i18n="title">차환 리스크와 등급 내 분산</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
   <div class="sub">/*META_LINE*/</div>
-  <div style="margin-bottom:16px">
-    <a class="back" style="margin:0" href="../" data-i18n="back">← 오늘자 스프레드 모니터</a>
-    &nbsp;·&nbsp;<a class="back" style="margin:0" href="../divergence/" data-i18n="to_div">신용-주식 괴리 →</a>
-  </div>
 
   <div class="card">
     <h2 data-i18n="wall_t">월별 만기 도래액 (등급 구간별)</h2>
@@ -338,6 +335,9 @@ def build_page(payload):
     meta = (f"발행 데이터 {payload['asof_issue']} · 스프레드 {payload['asof_spread']} · "
             f"민간 신용채권 잔존 {payload['credit_total_tn']}조원")
     html = HTML.replace("/*META_LINE*/", meta)
+    nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
+    assert "<!--NAV-->" in html
+    html = html.replace("<!--NAV-->", nav)
     outdir = os.path.join(DATA, "github_pages", "structure")
     os.makedirs(outdir, exist_ok=True)
     with open(os.path.join(outdir, "index.html"), "w") as f:

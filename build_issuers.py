@@ -97,14 +97,47 @@ def to_num(s):
     )
 
 
+DEDUP_EXTRA_COLS = ["날짜", "시간", "단가(원)", "거래량", "hash", "numbering"]
+BASE_COLS = ["종목명", "잔존기간", "신용등급", "수익률", "거래대금"]
+
+
+def dedup_trades(df):
+    """Drop copy rows identified by the source trade hash.
+
+    Full-corpus audit (2026-10-31, HASH-AUDIT.md): rows that share a
+    hash are exact copies except for the numbering column, which is a
+    copy counter, and no real hash collision exists in 4,476,232 rows.
+    Rows without a hash fall back to a full signature over every
+    column except numbering and hash, so distinct early rows are kept.
+    Files with no hash column at all are returned unchanged.
+    """
+    if "hash" not in df.columns:
+        return df
+    h = df["hash"].astype(str).str.strip()
+    has_hash = h.notna() & (h != "") & (h.str.lower() != "nan") & (h.str.lower() != "none")
+    keep = pd.Series(True, index=df.index)
+    hash_part = df[has_hash]
+    dup = hash_part.duplicated(subset=["hash"], keep="first")
+    keep.loc[dup[dup].index] = False
+    null_part = df[~has_hash]
+    if len(null_part):
+        sig_cols = [c for c in df.columns if c not in ("numbering", "hash")]
+        dup_sig = null_part.duplicated(subset=sig_cols, keep="first")
+        keep.loc[dup_sig[dup_sig].index] = False
+    return df[keep]
+
+
 def process_file(path):
     m = re.search(r"result_today_(\d{8})\.xlsx\.parquet$", path)
     if not m:
         return None
     date = m.group(1)
-    df = pd.read_parquet(
-        path, columns=["종목명", "잔존기간", "신용등급", "수익률", "거래대금"]
-    )
+    try:
+        df = pd.read_parquet(path, columns=BASE_COLS + DEDUP_EXTRA_COLS)
+        df = dedup_trades(df)
+        df = df.drop(columns=[c for c in DEDUP_EXTRA_COLS if c in df.columns])
+    except Exception:
+        df = pd.read_parquet(path, columns=BASE_COLS)
     df["수익률"] = to_num(df["수익률"])
     df["거래대금"] = to_num(df["거래대금"]).fillna(0)
     df = df.dropna(subset=["수익률"])

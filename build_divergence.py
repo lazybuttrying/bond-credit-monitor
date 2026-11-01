@@ -181,15 +181,12 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+<!--NAV-->
   <div style="display:flex;justify-content:space-between;align-items:center">
     <h1 data-i18n="title">신용-주식 괴리 모니터</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
   <div class="sub">/*META_LINE*/</div>
-  <div style="margin-bottom:16px">
-    <a class="back" style="margin:0" href="../" data-i18n="back">← 오늘자 스프레드 모니터</a>
-    &nbsp;·&nbsp;<a class="back" style="margin:0" href="../structure/" data-i18n="to_struct">차환 리스크와 등급 내 분산 →</a>
-  </div>
 
   <div class="card">
     <h2 data-i18n="scat_t">60일 괴리 맵 — 주가 수익률 × 스프레드 변화</h2>
@@ -310,6 +307,9 @@ def build_page(payload):
     meta = (f"스프레드 {payload['asof_spread']} · 주가 {payload['asof_stock']} · "
             f"{payload['window']}거래일 변화 기준 · 상장 맵핑 발행자 {len(payload['points'])}곳")
     html = HTML.replace("/*META_LINE*/", meta)
+    nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
+    assert "<!--NAV-->" in html
+    html = html.replace("<!--NAV-->", nav)
     outdir = os.path.join(DATA, "github_pages", "divergence")
     os.makedirs(outdir, exist_ok=True)
     with open(os.path.join(outdir, "index.html"), "w") as f:

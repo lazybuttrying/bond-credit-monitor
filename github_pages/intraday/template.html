@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>장중 체결 흐름 — 회사채 신용 스프레드 모니터</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         margin: 0; padding: 16px; background: #f7f8fa; color: #1a1a1a; line-height: 1.6; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  a { color: #2563eb; text-decoration: none; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 16px; margin: 0 0 8px; }
+  .toprow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .sub { font-size: 14px; color: #555; line-height: 1.7; margin: 4px 0 16px; }
+  .warn { background: #fff8e6; border: 1px solid #f0d98c; border-radius: 8px;
+          padding: 10px 12px; font-size: 13.5px; margin: 0 0 12px; line-height: 1.7; }
+  .limit { background: #f0f7f2; border: 1px solid #cfe5d6; border-radius: 8px;
+           padding: 10px 12px; font-size: 13.5px; margin: 0 0 16px; line-height: 1.7; }
+  .events { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .events button { padding: 8px 14px; border: 1px solid #ddd; border-radius: 20px;
+                   background: #fff; cursor: pointer; font-size: 14px; text-align: left; }
+  .events button.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .events button .d { color: #888; font-size: 12.5px; }
+  .events button.on .d { color: #bbb; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px;
+           font-weight: 700; margin-left: 6px; vertical-align: 2px; }
+  .badge.up { background: #e6f4ea; color: #14743c; }
+  .badge.down { background: #fdecec; color: #b3261e; }
+  .stats { font-size: 13.5px; color: #555; margin: 0 0 6px; }
+  .chart-title { font-size: 15px; margin: 18px 0 4px; }
+  .chart-desc { font-size: 13px; color: #666; line-height: 1.6; margin: 0 0 8px; }
+  .chart { width: 100%; }
+  .trow { display: flex; gap: 16px; flex-wrap: wrap; }
+  .tcol { flex: 1 1 320px; min-width: 0; }
+  table.moves { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+  table.moves th, table.moves td { padding: 7px 6px; text-align: left;
+          border-bottom: 1px solid #eee; vertical-align: top; }
+  table.moves th { color: #666; font-weight: 600; }
+  .kind { display: inline-block; border-radius: 6px; padding: 0 7px; font-size: 12px;
+          font-weight: 700; white-space: nowrap; }
+  .kind.jump { background: #fdecec; color: #b3261e; }
+  .kind.burst { background: #e8effe; color: #1d4ed8; }
+  .tblwrap { overflow-x: auto; }
+  .note { font-size: 12.5px; color: #888; margin-top: 10px; line-height: 1.6; }
+  .foot { text-align: center; color: #888; font-size: 13px; margin-top: 24px; }
+  .en { display: none; }
+  body.lang-en .en { display: block; }
+  body.lang-en .ko { display: none; }
+  body.lang-en span.en, body.lang-en a.en { display: inline; }
+  span.en { display: none; }
+  body.lang-en span.ko, body.lang-en a.ko { display: none; }
+  .chart-fallback { color: #666; font-size: 14px; padding: 16px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<!--NAV-->
+  <div class="toprow">
+    <h1><span class="ko">장중 체결 흐름</span><span class="en">Intraday Trade Flow</span></h1>
+    <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
+  </div>
+  <p class="sub ko">등급 변경이 거래 데이터에 처음 반영된 날, 그 발행자의 채권이 장중에 어떻게 거래됐는지를 체결 단위로 보여줍니다. 점 하나가 체결 한 건입니다. 아래 사건은 사건일 거래가 30건 이상인 등급 변경만 골랐습니다.</p>
+  <p class="sub en">Print-by-print view of how an issuer's bonds traded during the day a rating change first appeared in the trade data. Each dot is one trade. Only rating changes with at least 30 trades on the event day are shown.</p>
+
+  <div class="warn ko">데이터가 멈춰 있습니다. 체결 수집이 중단되어 온전한 거래일은 2026년 10월 20일까지이고, 2026년 10월 28일 파일은 559건만 담긴 부분 데이터라 이 페이지에서 제외했습니다. 이 페이지는 실시간 화면이 아니라 과거 등급 변경일의 기록입니다.</div>
+  <div class="warn en">The trade feed has stopped. Collection halted after the last complete trading day, 2026-10-20, and the 2026-10-28 file holds only 559 rows, so it is excluded here. This page is an archive of past rating-change days, not a live feed.</div>
+
+  <div class="limit ko">누가 거래했는지는 이 데이터에 없습니다. 체결 기록에 남는 것은 종목, 시각, 수익률, 거래금액, 매수와 매도 방향, 자기매매와 중개 구분뿐이라 거래 주체를 특정할 수 없습니다.</div>
+  <div class="limit en">This data does not say who traded. A trade print records only the bond, the time, the yield, the amount, the buy or sell direction, and whether the trade was proprietary or brokered, so no counterparty or institution can be identified.</div>
+
+  <div class="events" id="eventBtns">
+/*BUTTONS_HTML*/
+  </div>
+
+/*PANELS_HTML*/
+
+  <div class="foot">
+    <a href="https://sdykim.me/" style="color:#888">sdykim.me</a>
+    <span class="ko"> — 체결 데이터: KOFIA 장외채권 거래내역 (본 모니터 수집분)</span>
+    <span class="en"> — Trade data: KOFIA OTC bond prints, as collected by this monitor</span>
+  </div>
+</div>
+
+<script>
+window.INTRADAY = /*INTRADAY_JSON*/;
+</script>
+<script>
+(function () {
+  var S = {
+    ko: {
+      buy: '매수', sell: '매도', otherSide: '기타 방향',
+      ktb: '국고채권 (같은 잔존기간 구간)',
+      yieldAxis: '수익률(%)', timeAxis: '시각', amtAxis: '거래대금(억원)',
+      cumEvent: '사건일', cumBase: '직전 거래일',
+      own: '자기', broOther: '중개+기타',
+      fallback: '차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패). 위 통계와 급격한 움직임 목록은 정상입니다.',
+      hourSuffix: '시'
+    },
+    en: {
+      buy: 'Buy', sell: 'Sell', otherSide: 'Other direction',
+      ktb: 'KTB (same maturity buckets)',
+      yieldAxis: 'Yield (%)', timeAxis: 'Time of day', amtAxis: 'Amount (KRW 100M)',
+      cumEvent: 'Event day', cumBase: 'Previous trading day',
+      own: 'Proprietary', broOther: 'Brokered + other',
+      fallback: 'The chart could not be loaded (chart library connection failed). The statistics and sudden-move list above are unaffected.',
+      hourSuffix: ''
+    }
+  };
+  var NAV = {
+    ko: { nav_monitor: '모니터', nav_trends: '산업별 전체 추이', nav_concepts: '신용평가 개념 가이드', nav_structure: '차환 리스크·등급 내 분산', nav_divergence: '신용-주식 괴리', nav_monthly: '사건별 시장 반응', nav_intraday: '장중 체결 흐름' },
+    en: { nav_monitor: 'Monitor', nav_trends: 'All trends by industry', nav_concepts: 'Credit concepts guide', nav_structure: 'Refinancing & dispersion', nav_divergence: 'Credit-equity divergence', nav_monthly: 'Market moves by event', nav_intraday: 'Intraday trade flow' }
+  };
+  var LANG = localStorage.getItem('bond-lang') || 'ko';
+  var DATA = window.INTRADAY || { events: [] };
+  var current = null;
+  var drawn = {};
+
+  function t() { return S[LANG] || S.ko; }
+  function fmtTime(min) {
+    var h = Math.floor(min / 60), m = Math.floor(min % 60);
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+  var TICKS = [];
+  for (var h = 8; h <= 18; h++) TICKS.push(h * 60);
+  function xAxis() {
+    return { title: t().timeAxis, tickvals: TICKS, ticktext: TICKS.map(fmtTime), range: [470, 1090] };
+  }
+  function guard(id, fn) {
+    var el = document.getElementById(id);
+    try {
+      if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
+      fn();
+    } catch (e) {
+      if (el) el.innerHTML = '<div class="chart-fallback">' + t().fallback + '</div>';
+    }
+  }
+  function layout(extra) {
+    var base = { margin: { t: 10, r: 10, b: 40, l: 50 }, legend: { orientation: 'h', y: -0.22, font: { size: 11 } } };
+    for (var k in extra) base[k] = extra[k];
+    return base;
+  }
+  function drawEvent(ev) {
+    drawn[ev.id] = LANG;
+    var s = ev.scatter;
+    guard('sc-' + ev.id, function () {
+      var traces = [];
+      if (s.ktb && s.ktb.t.length) traces.push({
+        x: s.ktb.t, y: s.ktb.y, mode: 'markers', name: t().ktb,
+        marker: { size: 4, color: '#9aa3ad', opacity: 0.4 },
+        hovertemplate: '%{y:.3f}%<extra>' + t().ktb + '</extra>'
+      });
+      [['buy', '#2563eb', t().buy], ['sell', '#c93a3e', t().sell], ['other', '#6b7280', t().otherSide]].forEach(function (cfg) {
+        var g = s[cfg[0]];
+        if (!g || !g.t.length) return;
+        traces.push({
+          x: g.t, y: g.y, mode: 'markers', name: cfg[2],
+          marker: { size: g.s, color: cfg[1], opacity: 0.78, line: { width: 0.4, color: '#fff' } },
+          text: g.text, customdata: g.amt,
+          hovertemplate: '%{text}<br>%{y:.3f}% / %{customdata:.1f}' + (LANG === 'ko' ? '억원' : ' (KRW 100M)') + '<extra>' + cfg[2] + '</extra>'
+        });
+      });
+      Plotly.newPlot('sc-' + ev.id, traces, layout({
+        xaxis: xAxis(), yaxis: { title: t().yieldAxis, tickformat: '.2f' }, height: 320
+      }), { displayModeBar: false, responsive: true });
+    });
+    guard('cu-' + ev.id, function () {
+      var traces = [{
+        x: ev.cum.ev.map(function (p) { return p[0]; }), y: ev.cum.ev.map(function (p) { return p[1]; }),
+        mode: 'lines', name: t().cumEvent, line: { width: 2.4, color: '#1a1a1a', shape: 'hv' }
+      }];
+      if (ev.cum.base) traces.push({
+        x: ev.cum.base.map(function (p) { return p[0]; }), y: ev.cum.base.map(function (p) { return p[1]; }),
+        mode: 'lines', name: t().cumBase, line: { width: 1.6, color: '#9aa3ad', dash: 'dash', shape: 'hv' }
+      });
+      Plotly.newPlot('cu-' + ev.id, traces, layout({
+        xaxis: xAxis(), yaxis: { title: t().amtAxis }, height: 260
+      }), { displayModeBar: false, responsive: true });
+    });
+    guard('hb-' + ev.id, function () {
+      var hours = ev.hourly.h.map(function (hh) { return fmtTime(hh * 60); });
+      Plotly.newPlot('hb-' + ev.id, [
+        { x: hours, y: ev.hourly.buy, type: 'bar', name: t().buy, marker: { color: '#2563eb' } },
+        { x: hours, y: ev.hourly.sell, type: 'bar', name: t().sell, marker: { color: '#c93a3e' } }
+      ], layout({ barmode: 'group', yaxis: { title: t().amtAxis }, height: 240 }),
+      { displayModeBar: false, responsive: true });
+    });
+    guard('hf-' + ev.id, function () {
+      var hours = ev.hourly.h.map(function (hh) { return fmtTime(hh * 60); });
+      Plotly.newPlot('hf-' + ev.id, [
+        { x: hours, y: ev.hourly.own, type: 'bar', name: t().own, marker: { color: '#0f766e' } },
+        { x: hours, y: ev.hourly.bro, type: 'bar', name: t().broOther, marker: { color: '#d97706' } }
+      ], layout({ barmode: 'group', yaxis: { title: t().amtAxis }, height: 240 }),
+      { displayModeBar: false, responsive: true });
+    });
+  }
+  function select(id) {
+    current = id;
+    document.querySelectorAll('.events button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.ev === id);
+    });
+    DATA.events.forEach(function (ev) {
+      var p = document.getElementById('panel-' + ev.id);
+      if (p) p.style.display = ev.id === id ? '' : 'none';
+      if (ev.id === id && drawn[ev.id] !== LANG) drawEvent(ev);
+    });
+  }
+  document.querySelectorAll('.events button').forEach(function (b) {
+    b.addEventListener('click', function () { select(b.dataset.ev); });
+  });
+  function applyLang() {
+    document.body.classList.toggle('lang-en', LANG === 'en');
+    document.documentElement.lang = LANG === 'en' ? 'en' : 'ko';
+    document.getElementById('langBtn').textContent = LANG === 'en' ? '한' : 'EN';
+    document.title = LANG === 'en'
+      ? 'Intraday Trade Flow — Corporate Bond Credit Spread Monitor'
+      : '장중 체결 흐름 — 회사채 신용 스프레드 모니터';
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var v = (NAV[LANG] || {})[el.dataset.i18n];
+      if (typeof v === 'string') el.textContent = v;
+    });
+    if (current) {
+      var ev = DATA.events.find(function (e) { return e.id === current; });
+      if (ev) drawEvent(ev);
+    }
+  }
+  document.getElementById('langBtn').addEventListener('click', function () {
+    LANG = LANG === 'en' ? 'ko' : 'en';
+    localStorage.setItem('bond-lang', LANG);
+    applyLang();
+  });
+  applyLang();
+  if (DATA.events.length) select(DATA.events[0].id);
+})();
+</script>
+</body>
+</html>
