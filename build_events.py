@@ -57,94 +57,151 @@ def group_of(issuer, industry_fn):
     return None
 
 
-def src(outlet, date, topic, url):
-    return {"outlet": outlet, "date": date, "topic": topic, "url": url}
+OUTLET_EN = {
+    "서울경제": "Seoul Economic Daily",
+    "한국은행": "Bank of Korea",
+    "연합뉴스": "Yonhap News",
+    "아시아경제": "Asia Business Daily",
+    "연합인포맥스": "Yonhap Infomax",
+    "매일경제": "Maeil Business Newspaper",
+    "이데일리": "Edaily",
+    "SBS": "SBS",
+}
+
+MARKER_LABEL_EN = {"인상": "Hike", "고점": "Peak", "사건": "Event"}
+
+DATE_EN = {"2026-07-초": "Early Jul 2026"}
+
+
+def src(outlet, date, topic, url, topic_en=None):
+    return {"outlet": outlet, "outlet_en": OUTLET_EN.get(outlet, outlet),
+            "date": date, "date_en": DATE_EN.get(date, date), "topic": topic,
+            "topic_en": topic_en if topic_en is not None else topic,
+            "url": url}
 
 
 EVENTS = [
     {
         "id": "mar-shock",
         "title": "3월 중동 오일쇼크",
+        "title_en": "March Middle East Oil Shock",
         "date_label": "2026년 3월",
+        "date_label_en": "March 2026",
         "window": "month",
         "month": "202603",
         "topic": ["중동발 유가 충격에 국고 수익률 급등",
                   "1분기 일반채 발행 34.52조원, 전년 대비 24% 감소"],
+        "topic_en": ["KTB yields spiked on the Middle East oil shock",
+                     "Q1 regular bond issuance 34.52tn KRW, down 24% year on year"],
         "sources": [
             src("서울경제", "2026-03-30", "1분기 일반채 발행 24% 급감",
-                "https://en.sedaily.com/news/2026/03/30/corporate-bond-issuance-plunges-24-percent-as-rates-spike"),
+                "https://en.sedaily.com/news/2026/03/30/corporate-bond-issuance-plunges-24-percent-as-rates-spike",
+                "Q1 regular bond issuance plunges 24%"),
             src("한국은행", "2026-04-08", "3월 금융시장 동향",
-                "https://www.korea.net/Government/Briefing-Room/Press-Releases/view?articleId=8644&insttCode=A110427&type=O"),
+                "https://www.korea.net/Government/Briefing-Room/Press-Releases/view?articleId=8644&insttCode=A110427&type=O",
+                "March financial market trends"),
             src("연합뉴스", "2026-04-29", "3월 채권 발행 19.54조원",
-                "https://m.korean-vibe.com/news/newsview.php?ncode=179528853429716"),
+                "https://m.korean-vibe.com/news/newsview.php?ncode=179528853429716",
+                "March bond issuance 19.54tn KRW"),
         ],
         "verdict_qual": "수익률은 뛰었는데 스프레드는 전 그룹이 좁아졌다 (은행 23.8→11.4bp, 일반회사채 53.0→33.3bp). 국고가 더 뛰었다",
+        "verdict_en": "Yields jumped, but spreads narrowed in every group (banks 23.8→11.4bp, regular corporates 53.0→33.3bp). KTBs rose even more.",
     },
     {
         "id": "jr-default",
         "title": "4/27 JR글로벌리츠 부도",
+        "title_en": "Apr 27 JR Global REIT Default",
         "date_label": "2026년 4월 27일",
+        "date_label_en": "April 27, 2026",
         "window": "around",
         "center": "20260427",
         "topic": ["JR글로벌리츠 400억 단기채 부도, 상장리츠 첫 회생 신청",
                   "등급 A-에서 D로 강등, 소액주주 약 2만 8천 명"],
+        "topic_en": ["JR Global REIT defaulted on 40bn KRW of short-term bonds, the first listed REIT to file for rehabilitation",
+                     "Rating cut from A- to D, about 28,000 retail shareholders"],
         "sources": [
             src("아시아경제", "2026-04-30", "JR글로벌리츠 부도, 첫 상장리츠 회생",
-                "https://www.asiae.co.kr/en/article/2026043016182113283"),
+                "https://www.asiae.co.kr/en/article/2026043016182113283",
+                "JR Global REIT default, first listed REIT rehabilitation"),
             src("연합뉴스", "2026-06-02", "4월 채권 발행 22.20조원",
-                "https://en.yna.co.kr/view/AEN20260601007300320"),
+                "https://en.yna.co.kr/view/AEN20260601007300320",
+                "April bond issuance 22.20tn KRW"),
         ],
         "verdict_qual": "타리츠는 59.3→64.9bp로 소폭 넓어졌다. 건설업 중앙값 하락 (119.5→64.8bp)은 넓었던 종목들의 거래가 끊긴 구성 효과에 가깝다 (SK에코플랜트 120.9→101.2bp, 현대건설 33.9→25.6bp). 시장 전체 전이는 없었다",
+        "verdict_en": "Other REITs widened slightly, 59.3→64.9bp. The construction median's drop (119.5→64.8bp) is mostly a composition effect: the widest names stopped trading (SK에코플랜트 120.9→101.2bp, 현대건설 33.9→25.6bp). There was no market-wide contagion.",
         "extra_title": "타리츠·건설업 스프레드 (bp)",
+        "extra_title_en": "Other REITs and Construction Spreads (bp)",
         "extra_keys": ["reit", "construct"],
         "extra_desc": "타리츠는 JR 제외, 건설업은 건설기계·도로공사 제외. 점선은 시장 전체 중앙값이다.",
+        "extra_desc_en": "Other REITs exclude JR; construction excludes construction machinery and road corporations. The dotted line is the whole-market median.",
         "note": "부동산업은 이 기간 거래된 민간 발행자가 롯데물산·한국토지신탁 등 5곳에 그치고 하루 3건 이상 거래일이 거의 없어 별도 선을 그을 수 없었다.",
+        "note_en": "Real estate could not get its own line: only five private issuers (롯데물산, 한국토지신탁 and others) traded in this window, with almost no days of 3+ trades.",
     },
     {
         "id": "joongang",
         "title": "6/12 중앙그룹 위기",
+        "title_en": "Jun 12 JoongAng Group Crisis",
         "date_label": "2026년 6월 12일",
+        "date_label_en": "June 12, 2026",
         "window": "around",
         "center": "20260612",
         "topic": ["JTBC 206억 부도, 중앙그룹 계열사 5곳 회생 신청",
                   "그룹 부채 약 2.75조원, 등급 D·CCC·B-로 강등"],
+        "topic_en": ["JTBC defaulted on 20.6bn KRW, five JoongAng Group affiliates filed for rehabilitation",
+                     "Group debt about 2.75tn KRW, ratings cut to D, CCC and B-"],
         "sources": [
             src("연합인포맥스", "2026-06-15", "중앙그룹 투기등급 강등",
-                "https://en.infomaxai.com/news/articleView.html?idxno=125357"),
+                "https://en.infomaxai.com/news/articleView.html?idxno=125357",
+                "JoongAng Group cut to speculative grade"),
             src("연합인포맥스", "2026-06-19", "중앙그룹 연쇄 부도·회생",
-                "https://en.infomaxai.com/news/articleView.html?idxno=126185"),
+                "https://en.infomaxai.com/news/articleView.html?idxno=126185",
+                "JoongAng Group serial defaults and rehabilitation filings"),
             src("매일경제", "2026-07-초", "상반기 순발행 2016년 이후 최저",
-                "https://www.mk.co.kr/en/stock/12090707"),
+                "https://www.mk.co.kr/en/stock/12090707",
+                "First-half net issuance lowest since 2016"),
         ],
         "verdict_qual": "은행만 조금 넓어졌고 (16.9→20.0bp) 일반회사채는 좁아졌다 (45.0→42.7bp). 시장 전체로 번지지 않았다. 언론계는 아래 차트처럼 중앙일보가 3~4월에 이미 340bp대에서 거래됐다",
+        "verdict_en": "Only banks widened slightly (16.9→20.0bp); regular corporates narrowed (45.0→42.7bp). It did not spread to the whole market. In media, as the chart below shows, 중앙일보 was already trading in the 340bp range in March and April.",
         "extra_title": "언론계 스프레드 (2026년 전체, bp)",
+        "extra_title_en": "Media Spreads (full-year 2026, bp)",
         "extra_keys": ["cb", "sbs"],
         "extra_desc": "중앙일보는 3~4월에 이미 320~366bp대에서 거래되며 위기 전부터 스트레스를 반영했고, 6월 전후로는 거래가 끊겼다. SBS는 드문드문 점으로만 보인다. 점선은 시장 전체 중앙값이다.",
+        "extra_desc_en": "중앙일보 already traded in the 320-366bp range in March and April, pricing stress well before the crisis, and stopped trading around June. SBS appears only as sparse dots. The dotted line is the whole-market median.",
         "extra_full_year": True,
         "extra_markers": [{"date": "2026-06-12", "label": "사건", "color": "#dc2626"}],
     },
     {
         "id": "summer",
         "title": "7/16 인상 ~ 9/15 고점",
+        "title_en": "Jul 16 Hike to Sep 15 Peak",
         "date_label": "2026년 7월 16일 ~ 9월 15일",
+        "date_label_en": "July 16 - September 15, 2026",
         "window": "range",
         "start_center": "20260716",
         "end_center": "20260915",
         "topic": ["기준금리 2.50%→2.75% 첫 인상 (7/16), 3.00% 두 번째 인상 (8/27)",
                   "AA- 3년물 4.750% 연중 최고 (9/15), 9~10월 만기 13.47조원"],
+        "topic_en": ["First hike 2.50% to 2.75% (Jul 16), second hike to 3.00% (Aug 27)",
+                     "AA- 3Y at 4.750%, a year high (Sep 15); 13.47tn KRW maturing in Sep-Oct"],
         "sources": [
             src("한국은행", "2026-07-16", "기준금리 2.75% 첫 인상",
-                "https://www.bok.or.kr/eng/bbs/E0000634/view.do?nttId=11062944&searchCnd=1&searchKwd&depth2=400417&depth3=400423&depth=400423&pageUnit=10&pageIndex=1&programType=newsDataEng&menuNo=400423&oldMenuNo=400423"),
+                "https://www.bok.or.kr/eng/bbs/E0000634/view.do?nttId=11062944&searchCnd=1&searchKwd&depth2=400417&depth3=400423&depth=400423&pageUnit=10&pageIndex=1&programType=newsDataEng&menuNo=400423&oldMenuNo=400423",
+                "First hike to 2.75%"),
             src("SBS", "2026-08", "기준금리 3.00% 두 번째 인상",
-                "https://news.sbs.co.kr/english/article.do?news_id=N1008725743"),
+                "https://news.sbs.co.kr/english/article.do?news_id=N1008725743",
+                "Second hike to 3.00%"),
             src("이데일리", "2026-08-02", "7월 스프레드 67.5bp에서 72.0bp로 확대",
-                "https://en.edaily.co.kr/news/eda202608025023/"),
+                "https://en.edaily.co.kr/news/eda202608025023/",
+                "July spreads widen from 67.5bp to 72.0bp"),
             src("연합인포맥스", "2026-09-07", "9~10월 만기 13.47조원",
-                "https://en.infomaxai.com/news/articleView.html?idxno=138173"),
+                "https://en.infomaxai.com/news/articleView.html?idxno=138173",
+                "13.47tn KRW maturing in Sep-Oct"),
             src("이데일리", "2026-09-18", "AA- 3년물 연중 최고 4.750%",
-                "https://en.edaily.co.kr/news/eda202609185678/"),
+                "https://en.edaily.co.kr/news/eda202609185678/",
+                "AA- 3Y at a year-high 4.750%"),
         ],
         "verdict_qual": "긴축 국면 전체로 보면 시장 중앙값은 32.5→37.3bp로 소폭 넓어졌고, 은행 (10.6→34.2bp)과 일반회사채 (46.1→50.2bp)는 넓어졌다. 중간에 7/16 당일 40.4bp로 튀고 9/15 당일 30.0bp로 좁아지는 등락이 있었다",
+        "verdict_en": "Across the tightening phase, the market median widened slightly, 32.5→37.3bp, with banks (10.6→34.2bp) and regular corporates (46.1→50.2bp) wider. In between, it spiked to 40.4bp on Jul 16 itself and narrowed to 30.0bp on Sep 15.",
         "markers": [
             {"date": "2026-07-16", "label": "인상", "color": "#dc2626"},
             {"date": "2026-08-27", "label": "인상", "color": "#dc2626"},
@@ -154,23 +211,35 @@ EVENTS = [
     {
         "id": "kofr-loans",
         "title": "10/26 KOFR 기반 기업대출 출시",
+        "title_en": "Oct 26 KOFR-Based Corporate Loans Launch",
         "date_label": "2026년 10월 26일 (사전 베이스라인)",
+        "date_label_en": "October 26, 2026 (pre-event baseline)",
         "window": "pre",
         "topic": ["산업은행과 기업은행이 KOFR 기반 기업대출을 시작, 각 5천억원씩 합계 1조원",
                   "기준금리는 30일 평균 KOFR, 만기 최대 1년, 지방 중소기업 우대금리 적용",
                   "가계대출 적용은 아직 논의 중이라 후속 관찰 항목이다"],
+        "topic_en": ["KDB and IBK start KOFR-based corporate loans, 500bn KRW each, 1tn KRW in total",
+                     "Benchmark is the 30-day average KOFR, maturities up to 1 year, preferential rates for regional SMEs",
+                     "Household loan adoption is still under discussion, a follow-up watch item"],
         "sources": [
             src("서울경제", "2026-10-25", "Korea Launches First KOFR-Based Corporate Loans, Household Rollout Pending",
-                "https://en.sedaily.com/finance/2026/10/25/korea-launches-first-kofr-based-corporate-loans-household"),
+                "https://en.sedaily.com/finance/2026/10/25/korea-launches-first-kofr-based-corporate-loans-household",
+                "Korea Launches First KOFR-Based Corporate Loans, Household Rollout Pending"),
         ],
         "verdict_qual": "사전 카드다. 거래 데이터가 2026-10-20에서 멈춰 있어 사건일(10-26) 이후 구간은 아직 없다. 사건 후 판정은 데이터 복구 뒤 20거래일이 지난 뒤 확정한다",
+        "verdict_en": "This is a pre-event card. Trade data stops at 2026-10-20, so the post-event window (after Oct 26) does not exist yet. The post-event verdict will be finalized 20 trading days after the data feed recovers.",
         "markers": [],
         "chart_title": "차트: 사건 전 60거래일 국고채·상업은행채·일반회사채 스프레드 (bp)",
+        "chart_title_en": "Chart: KTB, commercial bank and regular corporate spreads, 60 trading days before the event (bp)",
         "chart_desc": "실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다. 사건일 이후 구간은 데이터 복구되는 대로 붙는다.",
+        "chart_desc_en": "The three solid lines are the group medians and the dotted line is the whole-market median. The KTB line sits near 0 because it is the baseline itself. Gaps are days when a group had no trades to compute a median. The post-event window will be attached once the data feed recovers.",
         "extra_title": "정책금융채 스프레드 (bp)",
+        "extra_title_en": "Policy Bank Bond Spreads (bp)",
         "extra_keys": ["policy"],
         "extra_desc": "정책금융채는 산업금융채권(산업은행), 중소기업은행(기업은행) 등 정책금융 발행자 기준이다. 대출 주체가 정책금융기관이라 별도 차트로 분리했다. 점선은 시장 전체 중앙값이다.",
+        "extra_desc_en": "Policy bank bonds are grouped by policy-finance issuers such as 산업은행 (KDB bonds) and 중소기업은행 (IBK). They are charted separately because the lenders here are policy institutions. The dotted line is the whole-market median.",
         "note": "이 카드는 사건 전 60거래일(2026-07-22~2026-10-20) 사전 베이스라인이다. 사건 후 60거래일 차트와 전후 20일 중앙값 판정 수치는 데이터 복구 후 업데이트한다.",
+        "note_en": "This card is a pre-event baseline over the 60 trading days before the event (2026-07-22 to 2026-10-20). The post-event 60-day chart and the 20-day pre/post median verdict figures will be updated after the data feed recovers.",
     },
 ]
 
@@ -256,6 +325,8 @@ def main():
             markers = [{"date": h, "label": "인상", "color": "#dc2626"}
                        for h in ("2026-07-16", "2026-08-27")
                        if h.replace("-", "") in win]
+        markers = [dict(m, label_en=MARKER_LABEL_EN.get(m["label"], m["label"]))
+                   for m in markers]
         if ev["window"] == "around":
             c = idx[ev["center"]]
             pre = median([series[d]["market"] for d in dates[max(0, c - 20):c]])
@@ -263,22 +334,32 @@ def main():
             evt_val = series[ev["center"]]["market"]
             stats = (f"사건 전 20일 중앙값 {pre}bp → 사건 후 20일 {post}bp "
                      f"(사건일 {evt_val}bp)")
+            stats_en = (f"Median 20d before {pre}bp → 20d after {post}bp "
+                        f"(event day {evt_val}bp)")
         elif ev["window"] == "month":
             mar_vals = [series[d]["market"] for d in win
                         if d.startswith(ev["month"])]
             stats = (f"3월 한 달 시장 중앙값 {mar_vals[0]}bp → "
                      f"{mar_vals[-1]}bp")
+            stats_en = (f"Market median through March {mar_vals[0]}bp → "
+                        f"{mar_vals[-1]}bp")
         elif ev["window"] == "pre":
             pre = median([series[d]["market"] for d in dates[-20:]])
             stats = (f"사건 전 20일 시장 중앙값 {pre}bp "
                      f"(데이터 마지막 거래일 {fmt(dates[-1])}, "
                      f"사건 후 구간은 데이터 복구 후 추가)")
+            stats_en = (f"Market median, 20d before the event {pre}bp "
+                        f"(last data trading day {fmt(dates[-1])}; "
+                        f"the post-event window is added after the feed recovers)")
         else:
             f20 = median([series[d]["market"] for d in win[:20]])
             l20 = median([series[d]["market"] for d in win[-20:]])
             stats = (f"윈도우 앞 20일 중앙값 {f20}bp → 뒤 20일 {l20}bp "
                      f"(7/16 당일 {series['20260716']['market']}bp, "
                      f"9/15 당일 {series['20260915']['market']}bp)")
+            stats_en = (f"Median, first 20d of window {f20}bp → last 20d {l20}bp "
+                        f"(Jul 16 itself {series['20260716']['market']}bp, "
+                        f"Sep 15 itself {series['20260915']['market']}bp)")
         # group pre/post (or first/last) diagnostics for verdict writing
         diag = {}
         if ev["window"] == "around":
@@ -296,16 +377,24 @@ def main():
         print(f"  diag: {diag}")
         out = {
             "id": ev["id"], "title": ev["title"],
-            "date_label": ev["date_label"], "topic": ev["topic"],
+            "title_en": ev.get("title_en", ev["title"]),
+            "date_label": ev["date_label"],
+            "date_label_en": ev.get("date_label_en", ev["date_label"]),
+            "topic": ev["topic"],
+            "topic_en": ev.get("topic_en", ev["topic"]),
             "sources": ev["sources"], "verdict": ev["verdict_qual"],
-            "stats": stats, "dates": [fmt(d) for d in win],
+            "verdict_en": ev.get("verdict_en", ev["verdict_qual"]),
+            "stats": stats, "stats_en": stats_en,
+            "dates": [fmt(d) for d in win],
             "series": {k: s[k] for k in ("market", "ktb", "bank", "corp")},
             "markers": markers,
         }
         if ev.get("chart_title"):
             out["chart_title"] = ev["chart_title"]
+            out["chart_title_en"] = ev.get("chart_title_en", ev["chart_title"])
         if ev.get("chart_desc"):
             out["chart_desc"] = ev["chart_desc"]
+            out["chart_desc_en"] = ev.get("chart_desc_en", ev["chart_desc"])
         if "extra_keys" in ev:
             if ev.get("extra_full_year"):
                 edates = dates
@@ -316,13 +405,18 @@ def main():
                 eseries = {k: s[k] for k in ev["extra_keys"] + ["market"]}
             out["extra"] = {
                 "title": ev["extra_title"], "desc": ev["extra_desc"],
+                "title_en": ev.get("extra_title_en", ev["extra_title"]),
+                "desc_en": ev.get("extra_desc_en", ev["extra_desc"]),
                 "dates": [fmt(d) for d in edates],
                 "series": eseries,
                 "keys": ev["extra_keys"],
-                "markers": ev.get("extra_markers", []),
+                "markers": [dict(m, label_en=MARKER_LABEL_EN.get(
+                    m["label"], m["label"]))
+                    for m in ev.get("extra_markers", [])],
             }
         if "note" in ev:
             out["note"] = ev["note"]
+            out["note_en"] = ev.get("note_en", ev["note"])
         out_events.append(out)
     tpl = open(os.path.join(MONTHLY_DIR, "template.html"), encoding="utf-8").read()
     payload = json.dumps({"events": out_events}, ensure_ascii=False)

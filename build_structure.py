@@ -200,7 +200,7 @@ HTML = """<!DOCTYPE html>
     <h1 data-i18n="title">차환 리스크와 등급 내 분산</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
-  <div class="sub">/*META_LINE*/</div>
+  <div class="sub" id="metaLine"></div>
 
   <div class="card">
     <h2 data-i18n="wall_t">월별 만기 도래액 (등급 구간별)</h2>
@@ -245,6 +245,10 @@ HTML = """<!DOCTYPE html>
       unrated: "무등급/미거래", tn: "조원", issuer: "발행자", rating: "등급", sector: "산업", out: "잔존(조)",
       due12: "12개월 내 만기(조)", share: "만기 비중%", spread: "스프레드(bp)",
       gap: "괴리(bp)", implied: "시장평가등급", notch: "등급차",
+      meta: (a, b, c) => `발행 데이터 ${a} · 스프레드 ${b} · 민간 신용채권 잔존 ${c}조원`,
+      nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+      nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN" },
     en: { title: "Refinancing Risk & Within-Rating Dispersion", back: "← Today's Spread Monitor", to_div: "Credit-Equity Divergence →",
       wall_t: "Monthly Maturity Wall (by Rating Band)", refi_t: "Refinancing Concentration — Share Maturing within 12M",
@@ -257,10 +261,21 @@ HTML = """<!DOCTYPE html>
       unrated: "Unrated/no trades", tn: "tn KRW", issuer: "Issuer", rating: "Rating", sector: "Sector", out: "Outstanding(tn)",
       due12: "Due ≤12M(tn)", share: "Due share %", spread: "Spread(bp)",
       gap: "Gap(bp)", implied: "Implied rating", notch: "Notch gap",
+      meta: (a, b, c) => `Issue data ${a} · Spreads as of ${b} · Private credit outstanding ${c}tn KRW`,
+      nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+      nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한" }
+  };
+  const IND_EN = {
+    "은행": "Banks", "카드": "Cards", "캐피탈": "Finance Cos", "금융지주": "Holdings",
+    "증권": "Securities", "보험": "Insurance", "정책금융": "Policy Banks",
+    "공기업": "Public Corps", "국채/통안": "Govt/MSB", "SPC": "SPCs", "일반기업": "Corporates",
+    "지방채": "Local Govt Bonds", "특수채": "Special Bonds"
   };
   let LANG = localStorage.getItem('bond-lang') || 'ko';
   const t = k => I18N[LANG][k];
+  const indName = ind => LANG === 'en' ? (IND_EN[ind] || ind) : ind;
   const BANDC = { AAA: "#1f6fb2", AA: "#5b9bd5", A: "#e8a33d", "BBB-": "#c0392b", unrated: "#bbbbbb" };
   function drawWall(){
     const traces = Object.keys(S.wall.bands).map(b => ({
@@ -293,7 +308,7 @@ HTML = """<!DOCTYPE html>
     tbl("refi", S.refinance, [
       { h: t('issuer'), f: r => r.issuer },
       { h: t('rating'), f: r => r.rating || "-" },
-      { h: t('sector'), f: r => r.industry },
+      { h: t('sector'), f: r => indName(r.industry) },
       { h: t('out'), f: r => r.outstanding.toFixed(1) },
       { h: t('due12'), f: r => r.due12.toFixed(1) },
       { h: t('share'), f: r => r.due12_share.toFixed(1) },
@@ -313,6 +328,8 @@ HTML = """<!DOCTYPE html>
       if (typeof v === 'string') el.textContent = v;
     });
     document.title = t('title') + " — " + (LANG === 'ko' ? "회사채 신용 스프레드 모니터" : "Corporate Bond Credit Spread Monitor");
+    document.getElementById('metaLine').textContent =
+      t('meta')(S.asof_issue, S.asof_spread, S.credit_total_tn);
     document.getElementById('langBtn').textContent = t('lang_btn');
     render();
   }
@@ -332,9 +349,7 @@ HTML = """<!DOCTYPE html>
 
 
 def build_page(payload):
-    meta = (f"발행 데이터 {payload['asof_issue']} · 스프레드 {payload['asof_spread']} · "
-            f"민간 신용채권 잔존 {payload['credit_total_tn']}조원")
-    html = HTML.replace("/*META_LINE*/", meta)
+    html = HTML
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)

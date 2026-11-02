@@ -171,6 +171,9 @@ ko: {
   stock_5d: (n, v) => `주가(${n}) 5일 ${v > 0 ? '+' : ''}${v}%`,
   stock_20d: (n, v) => `주가(${n}) 20거래일 ${v > 0 ? '+' : ''}${v}%`,
   lang_btn: "EN",
+  curve_y: "수익률(%)", curve_x: "잔존기간",
+  chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패). 아래 표 데이터는 정상입니다.",
+  chart_fail_plain: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
   no_alerts: "현재 5일 기준 급격한 스프레드 확대 종목 없음",
   alerts_sub: n => `5일간 15bp 이상 확대 ${n}곳 — 클릭하면 보유 채권 나열`,
   contagion: "계열 내 전파 신호",
@@ -230,6 +233,9 @@ en: {
   stock_5d: (n, v) => `${n} stock 5d ${v > 0 ? '+' : ''}${v}%`,
   stock_20d: (n, v) => `${n} stock 20d ${v > 0 ? '+' : ''}${v}%`,
   lang_btn: "한",
+  curve_y: "Yield (%)", curve_x: "Tenor",
+  chart_fail: "Could not load the chart (chart library connection failed). The table data below is unaffected.",
+  chart_fail_plain: "Could not load the chart (chart library connection failed).",
   no_alerts: "No issuers with sharp spread widening over 5 days",
   alerts_sub: n => `${n} issuers widened 15bp+ in 5d — click for bond list`,
   contagion: "Intra-group Contagion Signal",
@@ -266,7 +272,8 @@ en: {
 const IND_EN = {
   "은행": "Banks", "카드": "Cards", "캐피탈": "Finance Cos", "금융지주": "Holdings",
   "증권": "Securities", "보험": "Insurance", "정책금융": "Policy Banks",
-  "공기업": "Public Corps", "국채/통안": "Govt/MSB", "SPC": "SPCs", "일반기업": "Corporates"
+  "공기업": "Public Corps", "국채/통안": "Govt/MSB", "SPC": "SPCs", "일반기업": "Corporates",
+  "지방채": "Local Govt Bonds", "특수채": "Special Bonds"
 };
 let LANG = localStorage.getItem('bond-lang') || 'ko';
 const t = k => I18N[LANG][k];
@@ -302,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ---- yield curve ----
-(function(){
+function drawCurve(){
   const el = document.getElementById('curve');
   try {
     if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
@@ -312,13 +319,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     Plotly.newPlot('curve', traces, {
       margin: { t: 10, r: 10, b: 40, l: 45 },
-      yaxis: { title: '수익률(%)', tickformat: '.2f' }, xaxis: { title: '잔존기간' },
+      yaxis: { title: t('curve_y'), tickformat: '.2f' }, xaxis: { title: t('curve_x') },
       legend: { orientation: 'h', y: -0.25 }, height: 340
     }, { displayModeBar: false, responsive: true });
   } catch (e) {
-    if (el) el.innerHTML = '<div style="color:#666;font-size:14px;padding:16px 0;">차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패). 아래 표 데이터는 정상입니다.</div>';
+    if (el) el.innerHTML = `<div style="color:#666;font-size:14px;padding:16px 0;">${t('chart_fail')}</div>`;
   }
-})();
+}
+_rerender.push(drawCurve);
+drawCurve();
 
 // ---- alerts v2: group contagion + click drill-down to bonds ----
 function bondRows(issuer){
@@ -358,7 +367,7 @@ function renderAlerts(){
   A.items.forEach(r => { (groups[r.group] = groups[r.group] || []).push(r); });
   const order = Object.keys(groups).sort((a, b) => groups[b][0].chg_5d - groups[a][0].chg_5d);
   h += order.map(g =>
-    `<div class="agrp"><div class="agrp-h">${g} <span>${t('issuers_count')(groups[g].length)}</span></div>` +
+    `<div class="agrp"><div class="agrp-h">${indName(g)} <span>${t('issuers_count')(groups[g].length)}</span></div>` +
     groups[g].map(alertCard).join('') + '</div>'
   ).join('');
   el.innerHTML = h;
@@ -489,7 +498,7 @@ _rerender.push(renderRating);
       }, { displayModeBar: false, responsive: true });
     } catch (e) {
       const el = document.getElementById('ts');
-      if (el) el.innerHTML = '<div style="color:#666;font-size:14px;padding:16px 0;">차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).</div>';
+      if (el) el.innerHTML = `<div style="color:#666;font-size:14px;padding:16px 0;">${t('chart_fail_plain')}</div>`;
     }
   }
   sel.addEventListener('change', draw);

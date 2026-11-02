@@ -57,9 +57,12 @@
 <body>
 <div class="wrap">
 <!--NAV-->
+  <div style="display:flex;justify-content:flex-end">
+    <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
+  </div>
   <div class="hero">
-    <h1>사건별 시장 반응</h1>
-    <p class="sub">사건을 검색하거나 아래에서 고르면, 그 사건 전후의 스프레드를 내 거래 데이터로 보여줍니다.</p>
+    <h1 data-i18n="page_title">사건별 시장 반응</h1>
+    <p class="sub" data-i18n="page_sub">사건을 검색하거나 아래에서 고르면, 그 사건 전후의 스프레드를 내 거래 데이터로 보여줍니다.</p>
     <div class="search-wrap">
       <div class="search-box">
         <span class="mag">⌕</span>
@@ -67,7 +70,7 @@
       </div>
       <div class="search-drop" id="searchDrop"></div>
     </div>
-    <div class="past-label">이전 사건</div>
+    <div class="past-label" data-i18n="past_label">이전 사건</div>
     <div class="events center" id="eventBtns"></div>
   </div>
 
@@ -85,11 +88,11 @@
       <div id="chart2"></div>
     </div>
     <div class="note" id="noteLine" style="display:none"></div>
-    <h3 class="src-title">인용 기사</h3>
+    <h3 class="src-title" data-i18n="sources_title">인용 기사</h3>
     <ul class="sources" id="srcList"></ul>
   </div>
 
-  <div class="note">뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.</div>
+  <div class="note" data-i18n="page_note">뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.</div>
   <div class="foot"><a href="https://sdykim.me/">sdykim.me</a> · Doyeon Kim</div>
 </div>
 
@@ -97,19 +100,69 @@
 window.EVENTS_DATA = /*EVENTS_JSON*/;
 </script>
 <script>
+const I18N = {
+ko: {
+  doc_title: "사건별 시장 반응 — 회사채 신용 스프레드 모니터",
+  page_title: "사건별 시장 반응",
+  page_sub: "사건을 검색하거나 아래에서 고르면, 그 사건 전후의 스프레드를 내 거래 데이터로 보여줍니다.",
+  past_label: "이전 사건",
+  sources_title: "인용 기사",
+  page_note: "뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.",
+  search_ph: "사건 검색",
+  no_results: "검색 결과가 없습니다",
+  chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
+  chart_title: "차트: 사건 전후 국고채·상업은행채·일반회사채 스프레드 (bp)",
+  chart_desc: "실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.",
+  lang_btn: "EN",
+  nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+  nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+  nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
+  group: { market: "시장 중앙값 (점선)", ktb: "국고채", bank: "상업은행채", corp: "일반회사채" },
+  extra: { market: "시장 중앙값 (점선)", reit: "타리츠", construct: "건설업", estate: "부동산업", sll: "SLL중앙", sbs: "SBS", cb: "중앙일보", policy: "정책금융채" },
+},
+en: {
+  doc_title: "Market Moves by Event — Corporate Bond Credit Spread Monitor",
+  page_title: "Market Moves by Event",
+  page_sub: "Search for an event or pick one below to see the spreads around it, from my own trade data.",
+  past_label: "Past events",
+  sources_title: "Cited articles",
+  page_note: "News summaries follow the Jan-Sep 2026 corporate bond news timeline and are background only. Charts use my own trade data (daily medians after per-issuer 5-day rolling-median smoothing).",
+  search_ph: "Search events",
+  no_results: "No matching events",
+  chart_fail: "Could not load the chart (chart library connection failed).",
+  chart_title: "Chart: KTB, commercial bank and regular corporate spreads around the event (bp)",
+  chart_desc: "The three solid lines are the group medians, the dotted line is the whole-market median. The KTB line sits near 0 because it is the baseline itself. The red dotted lines mark policy rate hike days. Gaps are days when a group had no trades to compute a median.",
+  lang_btn: "한",
+  nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+  nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+  nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
+  group: { market: "Market median (dotted)", ktb: "KTB", bank: "Commercial bank bonds", corp: "Regular corporates" },
+  extra: { market: "Market median (dotted)", reit: "Other REITs", construct: "Construction", estate: "Real estate", sll: "SLL JoongAng", sbs: "SBS", cb: "JoongAng Ilbo", policy: "Policy bank bonds" },
+}
+};
+let LANG = localStorage.getItem('bond-lang') || 'ko';
+const t = k => I18N[LANG][k];
+const loc = (obj, base) => LANG === 'en' ? (obj[base + '_en'] || obj[base]) : obj[base];
+
 const EVENTS = window.EVENTS_DATA.events;
 const btnWrap = document.getElementById('eventBtns');
-EVENTS.forEach(ev => {
-  const b = document.createElement('button');
-  b.textContent = ev.title;
-  b.dataset.id = ev.id;
-  b.addEventListener('click', () => render(ev.id));
-  btnWrap.appendChild(b);
-});
+function buildButtons() {
+  btnWrap.innerHTML = '';
+  EVENTS.forEach(ev => {
+    const b = document.createElement('button');
+    b.textContent = loc(ev, 'title');
+    b.dataset.id = ev.id;
+    if (ev.id === currentId) b.classList.add('on');
+    b.addEventListener('click', () => render(ev.id));
+    btnWrap.appendChild(b);
+  });
+}
 const searchInput = document.getElementById('eventSearch');
 const searchDrop = document.getElementById('searchDrop');
 function eventHaystack(ev) {
-  return (ev.title + ' ' + (ev.date_label || '') + ' ' + (ev.topic || []).join(' ')).toLowerCase();
+  return (ev.title + ' ' + (ev.title_en || '') + ' ' +
+          (ev.date_label || '') + ' ' + (ev.date_label_en || '') + ' ' +
+          (ev.topic || []).join(' ') + ' ' + (ev.topic_en || []).join(' ')).toLowerCase();
 }
 function matchEvents(q) {
   q = q.trim().toLowerCase();
@@ -118,7 +171,7 @@ function matchEvents(q) {
 }
 function pickEvent(id) {
   const ev = EVENTS.find(e => e.id === id);
-  if (ev) searchInput.value = ev.title;
+  if (ev) searchInput.value = loc(ev, 'title');
   searchDrop.style.display = 'none';
   render(id);
 }
@@ -130,17 +183,20 @@ function refreshSearch() {
     b.style.display = matchIds.has(b.dataset.id) ? '' : 'none');
   if (!q.trim()) { searchDrop.style.display = 'none'; return; }
   if (!matches.length) {
-    searchDrop.innerHTML = '<div class="none">검색 결과가 없습니다</div>';
+    const none = document.createElement('div');
+    none.className = 'none';
+    none.textContent = t('no_results');
+    searchDrop.replaceChildren(none);
   } else {
     searchDrop.innerHTML = '';
     matches.slice(0, 8).forEach(ev => {
       const b = document.createElement('button');
-      const t = document.createElement('span');
-      t.textContent = ev.title;
+      const tt = document.createElement('span');
+      tt.textContent = loc(ev, 'title');
       const d = document.createElement('span');
       d.className = 'd';
-      d.textContent = ev.date_label || '';
-      b.appendChild(t);
+      d.textContent = loc(ev, 'date_label') || '';
+      b.appendChild(tt);
       b.appendChild(d);
       b.addEventListener('click', () => pickEvent(ev.id));
       searchDrop.appendChild(b);
@@ -166,7 +222,6 @@ const GROUP_STYLE = {
   bank: { width: 2, color: '#2563eb' },
   corp: { width: 2, color: '#9333ea' },
 };
-const GROUP_NAME = { market: '시장 중앙값 (점선)', ktb: '국고채', bank: '상업은행채', corp: '일반회사채' };
 const EXTRA_STYLE = {
   market: { width: 2, color: '#666', dash: 'dot' },
   reit: { width: 2, color: '#16a34a' },
@@ -177,7 +232,6 @@ const EXTRA_STYLE = {
   cb: { width: 2, color: '#dc2626' },
   policy: { width: 2, color: '#0e7490' },
 };
-const EXTRA_NAME = { market: '시장 중앙값 (점선)', reit: '타리츠', construct: '건설업', estate: '부동산업', sll: 'SLL중앙', sbs: 'SBS', cb: '중앙일보', policy: '정책금융채' };
 let currentId = null;
 let cardShown = false;
 function isMobile() { return window.innerWidth < 640; }
@@ -188,6 +242,7 @@ function legendLayout() {
     margin: { t: 20, r: 10, b: 120, l: 50 }
   };
 }
+function markerLabel(mk) { return LANG === 'en' ? (mk.label_en || mk.label) : mk.label; }
 function render(id) {
   currentId = id;
   const card = document.getElementById('eventCard');
@@ -199,20 +254,22 @@ function render(id) {
   document.querySelectorAll('#eventBtns button').forEach(b =>
     b.classList.toggle('on', b.dataset.id === id));
   const ev = EVENTS.find(e => e.id === id);
-  document.getElementById('eventTitle').textContent = ev.title + ' (' + ev.date_label + ')';
+  const GROUP_NAME = t('group'), EXTRA_NAME = t('extra');
+  document.getElementById('eventTitle').textContent = loc(ev, 'title') + ' (' + loc(ev, 'date_label') + ')';
   document.getElementById('topicList').innerHTML =
-    ev.topic.map(t => `<li>${t}</li>`).join('');
-  document.getElementById('verdictLine').textContent = ev.verdict;
-  document.getElementById('statsLine').textContent = ev.stats;
+    loc(ev, 'topic').map(x => `<li>${x}</li>`).join('');
+  document.getElementById('verdictLine').textContent = loc(ev, 'verdict');
+  document.getElementById('statsLine').textContent = loc(ev, 'stats');
   document.getElementById('chartTitle').textContent =
-    ev.chart_title || '차트: 사건 전후 국고채·상업은행채·일반회사채 스프레드 (bp)';
+    loc(ev, 'chart_title') || t('chart_title');
   document.getElementById('chartDesc').textContent =
-    ev.chart_desc || '실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.';
+    loc(ev, 'chart_desc') || t('chart_desc');
   document.getElementById('srcList').innerHTML =
     ev.sources.map(s =>
-      `<li><a href="${s.url}" target="_blank" rel="noopener">${s.topic}</a> <span class="meta">${s.outlet} ${s.date}</span></li>`).join('');
+      `<li><a href="${s.url}" target="_blank" rel="noopener">${loc(s, 'topic')}</a> <span class="meta">${loc(s, 'outlet')} ${loc(s, 'date')}</span></li>`).join('');
   const noteEl = document.getElementById('noteLine');
-  if (ev.note) { noteEl.textContent = ev.note; noteEl.style.display = 'block'; }
+  const noteTxt = loc(ev, 'note');
+  if (noteTxt) { noteEl.textContent = noteTxt; noteEl.style.display = 'block'; }
   else { noteEl.style.display = 'none'; }
   const el = document.getElementById('chart');
   try {
@@ -225,7 +282,7 @@ function render(id) {
       line: { color: mk.color, width: 1.5, dash: 'dash' }
     }));
     const annotations = ev.markers.map(mk => ({
-      x: mk.date, y: 1, yref: 'paper', text: mk.label, showarrow: false,
+      x: mk.date, y: 1, yref: 'paper', text: markerLabel(mk), showarrow: false,
       font: { size: 11, color: mk.color }
     }));
     Plotly.newPlot('chart', traces, {
@@ -235,13 +292,13 @@ function render(id) {
       ...legendLayout()
     }, { displayModeBar: false, responsive: true });
   } catch (e) {
-    el.innerHTML = '<div style="color:#666;font-size:14px;padding:16px 0;">차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).</div>';
+    el.innerHTML = `<div style="color:#666;font-size:14px;padding:16px 0;">${t('chart_fail')}</div>`;
   }
   const extraWrap = document.getElementById('extraWrap');
   if (ev.extra) {
     extraWrap.style.display = 'block';
-    document.getElementById('extraTitle').textContent = ev.extra.title;
-    document.getElementById('extraDesc').textContent = ev.extra.desc;
+    document.getElementById('extraTitle').textContent = loc(ev.extra, 'title');
+    document.getElementById('extraDesc').textContent = loc(ev.extra, 'desc');
     const el2 = document.getElementById('chart2');
     try {
       if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
@@ -257,7 +314,7 @@ function render(id) {
         line: { color: mk.color, width: 1.5, dash: 'dash' }
       }));
       const annotations2 = (ev.extra.markers || []).map(mk => ({
-        x: mk.date, y: 1, yref: 'paper', text: mk.label, showarrow: false,
+        x: mk.date, y: 1, yref: 'paper', text: markerLabel(mk), showarrow: false,
         font: { size: 11, color: mk.color }
       }));
       Plotly.newPlot('chart2', traces2, {
@@ -267,7 +324,7 @@ function render(id) {
         ...legendLayout()
       }, { displayModeBar: false, responsive: true });
     } catch (e) {
-      el2.innerHTML = '<div style="color:#666;font-size:14px;padding:16px 0;">차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).</div>';
+      el2.innerHTML = `<div style="color:#666;font-size:14px;padding:16px 0;">${t('chart_fail')}</div>`;
     }
   } else {
     extraWrap.style.display = 'none';
@@ -281,6 +338,24 @@ window.addEventListener('resize', () => {
     if (isMobile() !== lastMobile) { lastMobile = isMobile(); if (currentId) render(currentId); }
   }, 200);
 });
+function applyI18n() {
+  document.documentElement.lang = LANG === 'ko' ? 'ko' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = t(el.dataset.i18n);
+    if (typeof v === 'string') el.textContent = v;
+  });
+  document.title = t('doc_title');
+  searchInput.placeholder = t('search_ph');
+  document.getElementById('langBtn').textContent = t('lang_btn');
+  buildButtons();
+  if (currentId) render(currentId);
+}
+document.getElementById('langBtn').addEventListener('click', () => {
+  LANG = LANG === 'ko' ? 'en' : 'ko';
+  localStorage.setItem('bond-lang', LANG);
+  applyI18n();
+});
+applyI18n();
 </script>
 </body>
 </html>

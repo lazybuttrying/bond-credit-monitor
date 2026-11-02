@@ -101,7 +101,7 @@ HTML = """<!DOCTYPE html>
     <h1 data-i18n="title">발행자 스프레드 추이</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
-  <div class="sub">/*META_LINE*/</div>
+  <div class="sub" id="metaLine"></div>
   <div id="sections"></div>
   <div class="note" data-i18n="note">20거래일 이동중앙값 기준이라 단기 노이즈가 제거됨.
   단기 = 잔존기간 1년 이하, 장기 = 1년 초과. 같은 회사의 단기 스프레드가 치솟으면
@@ -111,28 +111,38 @@ HTML = """<!DOCTYPE html>
 <script>
 (function(){
   const T = window.TRENDS;
+  const META = /*META_JSON*/;
   const I18N = {
     ko: {
       title: "발행자 스프레드 추이",
       back: "← 오늘자 스프레드 모니터",
-      note: "20거래일 이동중앙값 기준이라 단기 노이즈가 제거됨.\n  단기 = 잔존기간 1년 이하, 장기 = 1년 초과. 같은 회사의 단기 스프레드가 치솟으면\n  유동성 경색 신호일 수 있음. 스프레드 = 자사 수익률 − 잔존기간 매칭 국고채 수익률.",
+      note: "20거래일 이동중앙값 기준이라 단기 노이즈가 제거됨.\\n  단기 = 잔존기간 1년 이하, 장기 = 1년 초과. 같은 회사의 단기 스프레드가 치솟으면\\n  유동성 경색 신호일 수 있음. 스프레드 = 자사 수익률 − 잔존기간 매칭 국고채 수익률.",
       short: "단기 (≤1년)", long: "장기 (>1년)", median: "중간값",
       count: n => `${n}개 발행자 · 20일 이동중앙값`,
+      meta: (days, first, last) => `최근 ${days}거래일 (${first} ~ ${last}) · 20거래일 이동중앙값 · 유동성 상위 발행자`,
+      nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+      nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN",
     },
     en: {
       title: "Issuer Spread Trends",
       back: "← Today's Spread Monitor",
-      note: "20-trading-day rolling medians filter out short-term noise.\n  Short = remaining maturity ≤1Y, Long = >1Y. A spike in a company's short-term spread\n  may signal liquidity stress. Spread = own yield − tenor-matched KTB yield.",
+      note: "20-trading-day rolling medians filter out short-term noise.\\n  Short = remaining maturity ≤1Y, Long = >1Y. A spike in a company's short-term spread\\n  may signal liquidity stress. Spread = own yield − tenor-matched KTB yield.",
       short: "Short (≤1Y)", long: "Long (>1Y)", median: "Median",
       count: n => `${n} issuers · 20d rolling median`,
+      meta: (days, first, last) => `Last ${days} trading days (${first} ~ ${last}) · 20-trading-day rolling median · most liquid issuers`,
+      nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+      nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한",
     }
   };
   const IND_EN = {
     "은행": "Banks", "카드": "Cards", "캐피탈": "Finance Cos", "금융지주": "Holdings",
     "증권": "Securities", "보험": "Insurance", "정책금융": "Policy Banks",
-    "공기업": "Public Corps", "국채/통안": "Govt/MSB", "SPC": "SPCs", "일반기업": "Corporates"
+    "공기업": "Public Corps", "국채/통안": "Govt/MSB", "SPC": "SPCs", "일반기업": "Corporates",
+    "지방채": "Local Govt Bonds", "특수채": "Special Bonds"
   };
   let LANG = localStorage.getItem('bond-lang') || 'ko';
   const t = k => I18N[LANG][k];
@@ -189,6 +199,8 @@ HTML = """<!DOCTYPE html>
       if (typeof v === 'string') el.textContent = v;
     });
     document.title = t('title') + " — " + (LANG === 'ko' ? "회사채 신용 스프레드 모니터" : "Corporate Bond Credit Spread Monitor");
+    const ml = document.getElementById('metaLine');
+    if (ml) ml.textContent = t('meta')(META.days, META.first, META.last);
     const lb = document.getElementById('langBtn');
     if (lb) lb.textContent = t('lang_btn');
     renderSections();
@@ -211,9 +223,9 @@ HTML = """<!DOCTYPE html>
 def build_page():
     with open(os.path.join(DATA, "issuers.json")) as f:
         iss = json.load(f)
-    meta = (f"최근 {DAYS}거래일 ({iss['meta']['first_date']} ~ {iss['meta']['last_date']}) · "
-            f"20거래일 이동중앙값 · 유동성 상위 발행자")
-    html = HTML.replace("/*META_LINE*/", meta)
+    meta = {"days": DAYS, "first": iss["meta"]["first_date"],
+            "last": iss["meta"]["last_date"]}
+    html = HTML.replace("/*META_JSON*/", json.dumps(meta))
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)

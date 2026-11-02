@@ -186,7 +186,7 @@ HTML = """<!DOCTYPE html>
     <h1 data-i18n="title">신용-주식 괴리 모니터</h1>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
-  <div class="sub">/*META_LINE*/</div>
+  <div class="sub" id="metaLine"></div>
 
   <div class="card">
     <h2 data-i18n="scat_t">60일 괴리 맵 — 주가 수익률 × 스프레드 변화</h2>
@@ -219,6 +219,10 @@ HTML = """<!DOCTYPE html>
       issuer: "발행자", stock: "주가 60일%", sprd: "스프레드 60일(bp)", now: "현재(bp)", quad: "구분", score: "괴리 점수",
       q: { div_credit_worse: "신용 악화형", div_credit_better: "신용 개선형", agree_good: "동반 개선", agree_bad: "동반 악화" },
       x: "주가 60일 수익률 (%)", y: "스프레드 60일 변화 (bp)", stock_idx: "주가 (시작=100)", sprd_l: "스프레드 (bp)",
+      meta: (a, b, w, n) => `스프레드 ${a} · 주가 ${b} · ${w}거래일 변화 기준 · 상장 맵핑 발행자 ${n}곳`,
+      nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+      nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN" },
     en: { title: "Credit-Equity Divergence Monitor", back: "← Today's Spread Monitor", to_struct: "Refinancing Risk & Dispersion →",
       scat_t: "60-Day Divergence Map — Stock Return × Spread Change",
@@ -229,6 +233,10 @@ HTML = """<!DOCTYPE html>
       issuer: "Issuer", stock: "Stock 60d %", sprd: "Spread 60d (bp)", now: "Now (bp)", quad: "Type", score: "Score",
       q: { div_credit_worse: "Credit worsening", div_credit_better: "Credit improving", agree_good: "Both improving", agree_bad: "Both worsening" },
       x: "Stock 60d return (%)", y: "Spread 60d change (bp)", stock_idx: "Stock (start=100)", sprd_l: "Spread (bp)",
+      meta: (a, b, w, n) => `Spreads ${a} · Stocks ${b} · ${w}-trading-day changes · ${n} issuers mapped to listed stocks`,
+      nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+      nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한" }
   };
   let LANG = localStorage.getItem('bond-lang') || 'ko';
@@ -285,6 +293,8 @@ HTML = """<!DOCTYPE html>
       if (typeof v === 'string') el.textContent = v;
     });
     document.title = t('title') + " — " + (LANG === 'ko' ? "회사채 신용 스프레드 모니터" : "Corporate Bond Credit Spread Monitor");
+    document.getElementById('metaLine').textContent =
+      t('meta')(D.asof_spread, D.asof_stock, D.window, D.points.length);
     document.getElementById('langBtn').textContent = t('lang_btn');
     render();
   }
@@ -304,9 +314,7 @@ HTML = """<!DOCTYPE html>
 
 
 def build_page(payload):
-    meta = (f"스프레드 {payload['asof_spread']} · 주가 {payload['asof_stock']} · "
-            f"{payload['window']}거래일 변화 기준 · 상장 맵핑 발행자 {len(payload['points'])}곳")
-    html = HTML.replace("/*META_LINE*/", meta)
+    html = HTML
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)
