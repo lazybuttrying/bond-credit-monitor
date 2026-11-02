@@ -157,7 +157,7 @@ HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>신용-주식 괴리 모니터 — 회사채 신용 스프레드 모니터</title>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js"></script>
 <style>
   body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0;
          background: #f5f6f8; color: #222; }

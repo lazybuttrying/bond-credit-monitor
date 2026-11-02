@@ -106,6 +106,17 @@ EVENTS = [
         ],
         "verdict_qual": "수익률은 뛰었는데 스프레드는 전 그룹이 좁아졌다 (은행 23.8→11.4bp, 일반회사채 53.0→33.3bp). 국고가 더 뛰었다",
         "verdict_en": "Yields jumped, but spreads narrowed in every group (banks 23.8→11.4bp, regular corporates 53.0→33.3bp). KTBs rose even more.",
+        "intraday": {
+            "date": "20260323",
+            "date_reason": "3월 중 국고채권 중앙 수익률이 전날보다 가장 크게 뛴 날 (3.559%에서 3.716%로 15.9bp 상승)",
+            "date_reason_en": "The day in March when the median KTB yield jumped most from the previous trading day (3.559% to 3.716%, +15.9bp)",
+            "focus_groups": ["bank", "corp"],
+            "focus_label": "회사채 (상업은행채, 일반회사채)",
+            "focus_label_en": "Corporate bonds (commercial bank bonds, regular corporates)",
+            "peer_groups": ["ktb"],
+            "peer_label": "국고채권",
+            "peer_label_en": "Korea Treasury Bonds",
+        },
     },
     {
         "id": "jr-default",
@@ -134,8 +145,17 @@ EVENTS = [
         "extra_keys": ["reit", "construct"],
         "extra_desc": "타리츠는 JR 제외, 건설업은 건설기계·도로공사 제외. 점선은 시장 전체 중앙값이다.",
         "extra_desc_en": "Other REITs exclude JR; construction excludes construction machinery and road corporations. The dotted line is the whole-market median.",
-        "note": "부동산업은 이 기간 거래된 민간 발행자가 롯데물산·한국토지신탁 등 5곳에 그치고 하루 3건 이상 거래일이 거의 없어 별도 선을 그을 수 없었다.",
+        "note": "부동산업은 이 기간 거래된 민간 발행자가 롯데물산, 한국토지신탁 등 5곳에 그치고 하루 3건 이상 거래일이 거의 없어 별도 선을 그을 수 없었다.",
         "note_en": "Real estate could not get its own line: only five private issuers (롯데물산, 한국토지신탁 and others) traded in this window, with almost no days of 3+ trades.",
+        "intraday": {
+            "date": "20260427",
+            "focus_issuers": ["제이알글로벌위탁관리부동산투자회사"],
+            "focus_label": "JR글로벌리츠",
+            "focus_label_en": "JR Global REIT",
+            "peer_groups": ["reit", "construct"],
+            "peer_label": "타리츠, 건설업",
+            "peer_label_en": "Other REITs, construction",
+        },
     },
     {
         "id": "joongang",
@@ -169,6 +189,15 @@ EVENTS = [
         "extra_desc_en": "중앙일보 already traded in the 320-366bp range in March and April, pricing stress well before the crisis, and stopped trading around June. SBS appears only as sparse dots. The dotted line is the whole-market median.",
         "extra_full_year": True,
         "extra_markers": [{"date": "2026-06-12", "label": "사건", "color": "#dc2626"}],
+        "intraday": {
+            "date": "20260612",
+            "focus_issuers": ["에스엘엘중앙", "중앙일보"],
+            "focus_label": "중앙그룹 (에스엘엘중앙, 중앙일보)",
+            "focus_label_en": "JoongAng Group (SLL JoongAng, JoongAng Ilbo)",
+            "peer_groups": ["sbs"],
+            "peer_label": "SBS (언론 피어)",
+            "peer_label_en": "SBS (media peer)",
+        },
     },
     {
         "id": "summer",
@@ -207,6 +236,17 @@ EVENTS = [
             {"date": "2026-08-27", "label": "인상", "color": "#dc2626"},
             {"date": "2026-09-15", "label": "고점", "color": "#9333ea"},
         ],
+        "intraday": {
+            "date": "20260716",
+            "date_reason": "첫 번째 기준금리 인상일",
+            "date_reason_en": "The first policy rate hike day",
+            "focus_groups": ["bank", "corp"],
+            "focus_label": "회사채 (상업은행채, 일반회사채)",
+            "focus_label_en": "Corporate bonds (commercial bank bonds, regular corporates)",
+            "peer_groups": ["ktb"],
+            "peer_label": "국고채권",
+            "peer_label_en": "Korea Treasury Bonds",
+        },
     },
     {
         "id": "kofr-loans",
@@ -240,6 +280,15 @@ EVENTS = [
         "extra_desc_en": "Policy bank bonds are grouped by policy-finance issuers such as 산업은행 (KDB bonds) and 중소기업은행 (IBK). They are charted separately because the lenders here are policy institutions. The dotted line is the whole-market median.",
         "note": "이 카드는 사건 전 60거래일(2026-07-22~2026-10-20) 사전 베이스라인이다. 사건 후 60거래일 차트와 전후 20일 중앙값 판정 수치는 데이터 복구 후 업데이트한다.",
         "note_en": "This card is a pre-event baseline over the 60 trading days before the event (2026-07-22 to 2026-10-20). The post-event 60-day chart and the 20-day pre/post median verdict figures will be updated after the data feed recovers.",
+        "intraday": {
+            "date": "20261026",
+            "focus_issuers": ["산업금융채권", "중소기업은행"],
+            "focus_label": "정책금융 (산업은행, 기업은행)",
+            "focus_label_en": "Policy finance (KDB, IBK bonds)",
+            "peer_groups": ["bank"],
+            "peer_label": "상업은행채",
+            "peer_label_en": "Commercial bank bonds",
+        },
     },
 ]
 
@@ -290,6 +339,97 @@ def median(vals):
         return None
     n = len(v)
     return round(v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2, 1)
+
+
+def intraday_payload(cfg, industry_fn):
+    """Event-day intraday flow for the event page: the focus issuer(s) or
+    group, plus peer companies (same industry group), from print-level
+    trades cleaned exactly like the intraday page (build_intraday.load_day).
+
+    Cumulative amounts use 10-minute bins (overview page, not the
+    print-level intraday page). A focus with zero trades on the event day
+    is a result, not a failure: the payload says so and the peer series
+    still renders, so the contrast with a normally trading market is
+    visible.
+    """
+    import build_intraday as bid
+
+    out = {
+        "date": fmt(cfg["date"]),
+        "focus_label": cfg["focus_label"],
+        "focus_label_en": cfg.get("focus_label_en", cfg["focus_label"]),
+        "peer_label": cfg["peer_label"],
+        "peer_label_en": cfg.get("peer_label_en", cfg["peer_label"]),
+        "status": "ok",
+    }
+    if cfg.get("date_reason"):
+        out["date_reason"] = cfg["date_reason"]
+        out["date_reason_en"] = cfg.get("date_reason_en", cfg["date_reason"])
+    df = bid.load_day(cfg["date"])
+    if df is None:
+        out["status"] = "no_data"
+        return out
+    df = df.copy()
+    df["grp"] = df["issuer"].map(lambda i: group_of(i, industry_fn))
+    focus_mask = df["issuer"].isin(cfg.get("focus_issuers", []))
+    if cfg.get("focus_groups"):
+        focus_mask = focus_mask | df["grp"].isin(cfg["focus_groups"])
+    peer_mask = df["issuer"].isin(cfg.get("peer_issuers", []))
+    if cfg.get("peer_groups"):
+        peer_mask = peer_mask | df["grp"].isin(cfg["peer_groups"])
+    peer_mask = peer_mask & ~focus_mask
+    focus = df[focus_mask]
+    peer = df[peer_mask]
+
+    def bin_cum(sub):
+        if not len(sub):
+            return []
+        bins = (sub["t_min"] // 10 * 10).astype(int)
+        per_bin = sub.groupby(bins)["amt"].sum().sort_index()
+        pts, run = [], 0.0
+        for b, amt in per_bin.items():
+            run += float(amt)
+            pts.append([int(b), round(run / 10000.0, 2)])
+        return pts
+
+    hours = sorted(set(int(v // 60) for v in focus["t_min"])
+                   | set(int(v // 60) for v in peer["t_min"]))
+
+    def hourly(sub):
+        vals = []
+        for h in hours:
+            g = sub[(sub["t_min"] >= h * 60) & (sub["t_min"] < (h + 1) * 60)]
+            vals.append(round(float(g["amt"].sum()) / 10000.0, 2))
+        return vals
+
+    scatter = None
+    if cfg.get("focus_issuers") and 0 < len(focus) <= 400:
+        scatter = {
+            "t": [round(float(v), 2) for v in focus["t_min"]],
+            "y": [round(float(v), 3) for v in focus["yld"]],
+            "s": [bid.marker_size(float(v)) for v in focus["amt"]],
+            "amt": [round(float(v) / 10000.0, 2) for v in focus["amt"]],
+            "text": [f"{b} {ts}" for b, ts in zip(focus["bond"], focus["time_str"])],
+        }
+    top_peers = [
+        {"name": str(name), "n": int(n)}
+        for name, n in peer["issuer"].value_counts().head(3).items()
+    ]
+    out.update({
+        "focus_n": int(len(focus)),
+        "focus_amt": round(float(focus["amt"].sum()) / 10000.0, 1),
+        "peer_n": int(len(peer)),
+        "peer_amt": round(float(peer["amt"].sum()) / 10000.0, 1),
+        "market_n": int(len(df)),
+        "top_peers": top_peers,
+        "cum_focus": bin_cum(focus),
+        "cum_peer": bin_cum(peer),
+        "hourly": {"h": hours, "focus": hourly(focus), "peer": hourly(peer)},
+        "scatter": scatter,
+    })
+    if not len(focus):
+        out["status"] = "no_focus_trades"
+    return out
 
 
 def main():
@@ -417,6 +557,14 @@ def main():
         if "note" in ev:
             out["note"] = ev["note"]
             out["note_en"] = ev.get("note_en", ev["note"])
+        if "intraday" in ev:
+            sys.path.insert(0, DATA)
+            import build_issuers as bi
+            intra = intraday_payload(ev["intraday"], bi.industry_of)
+            out["intraday"] = intra
+            print(f"  intraday {intra['date']}: status={intra['status']} "
+                  f"focus={intra.get('focus_n')} peer={intra.get('peer_n')} "
+                  f"market={intra.get('market_n')}")
         out_events.append(out)
     tpl = open(os.path.join(MONTHLY_DIR, "template.html"), encoding="utf-8").read()
     payload = json.dumps({"events": out_events}, ensure_ascii=False)
