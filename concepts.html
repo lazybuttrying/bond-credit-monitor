@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용평가 개념 가이드 — 회사채 신용 스프레드 모니터</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         margin: 0; padding: 16px; background: #f7f8fa; color: #1a1a1a; line-height: 1.7; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  h3:first-of-type { margin-top: 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); font-size: 14px; }
+  .card p { margin: 6px 0; }
+  .formula { background: #f3f5f8; border: 1px solid #e3e8ef; border-radius: 8px;
+             padding: 10px 14px; font-family: ui-monospace, Menlo, Consolas, monospace;
+             font-size: 13px; overflow-x: auto; white-space: nowrap; margin: 10px 0; }
+  .src { color: #888; font-size: 12px; margin-top: 8px; }
+  .tag { display: inline-block; background: #eef2f7; color: #345; border-radius: 999px;
+         padding: 1px 9px; font-size: 11.5px; margin-right: 4px; font-weight: 600; }
+  .flow { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; margin: 12px 0; }
+  .flow .box { flex: 1 1 180px; background: #f7f9fc; border: 1px solid #e3e8ef; border-radius: 8px;
+               padding: 10px 12px; font-size: 13px; }
+  .flow .box b { display: block; margin-bottom: 4px; }
+  .flow .arrow { align-self: center; color: #999; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+  th, td { padding: 7px 6px; text-align: right; border-bottom: 1px solid #eee; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: #666; font-weight: 600; }
+  .tblwrap { overflow-x: auto; }
+  .warn { background: #fff8e6; border: 1px solid #f0d98c; border-radius: 8px;
+          padding: 10px 12px; font-size: 13px; margin: 10px 0; }
+  .okbox { background: #f0f7f2; border: 1px solid #cfe5d6; border-radius: 8px;
+           padding: 10px 12px; font-size: 13px; margin: 10px 0; }
+  ul { margin: 6px 0 6px 18px; padding: 0; }
+  li { margin: 3px 0; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back { font-size: 13px; }
+  .note { font-size: 12px; color: #888; line-height: 1.6; }
+  .en { display: none; }
+  body.lang-en .en { display: block; }
+  body.lang-en .ko { display: none; }
+  body.lang-en span.en, body.lang-en a.en { display: inline; }
+  span.en { display: none; }
+  body.lang-en span.ko, body.lang-en a.ko { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<style>
+  .site-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+  .site-nav a { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px;
+                background: #fff; color: #1a1a1a; text-decoration: none; font-size: 13.5px; }
+  .site-nav a.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+</style>
+<nav class="site-nav">
+  <a href="/bond-credit-monitor/" data-i18n="nav_monitor">모니터</a>
+  <a href="/bond-credit-monitor/trends/" data-i18n="nav_trends">산업별 전체 추이</a>
+  <a href="/bond-credit-monitor/concepts/" data-i18n="nav_concepts">신용평가 개념 가이드</a>
+  <a href="/bond-credit-monitor/structure/" data-i18n="nav_structure">차환 리스크·등급 내 분산</a>
+  <a href="/bond-credit-monitor/divergence/" data-i18n="nav_divergence">신용-주식 괴리</a>
+  <a href="/bond-credit-monitor/monthly/" data-i18n="nav_monthly">사건별 시장 반응</a>
+  <a href="/bond-credit-monitor/intraday/" data-i18n="nav_intraday">장중 체결 흐름</a>
+</nav>
+<script>
+(function () {
+  var here = window.location.pathname.replace(/\/$/, '') || '/';
+  document.querySelectorAll('.site-nav a').forEach(function (a) {
+    var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
+    if (p === here) a.classList.add('on');
+  });
+})();
+</script>
+
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    
+    <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
+  </div>
+
+  <!-- ================= KO ================= -->
+  <div class="ko">
+  <h1>신용평가 개념 가이드</h1>
+  <div class="sub">이 모니터가 서 있는 자리 — 재무비율에서 시장 신호까지, 신용을 재는 기존 개념들과의 연결</div>
+
+  <div class="card">
+    <h2>한눈에 보기: 신용을 재는 두 개의 축</h2>
+    <p>신용평가의 역사는 결국 하나의 질문으로 수렴합니다. <b>"이 회사가 돈을 갚을 수 있는가, 그리고 그 위험을 숫자로 어떻게 표현할 것인가."</b>
+    답하는 방식은 두 축으로 나뉩니다.</p>
+    <div class="flow">
+      <div class="box"><b>Fundamental 축 (느림)</b>재무제표 비율로 판단. 연 1회 공시, 검증 가능하지만 늦다.<br><span class="tag">Altman Z-score</span><span class="tag">scorecard</span></div>
+      <div class="arrow">+</div>
+      <div class="box"><b>Market 축 (빠름)</b>시장 가격(주가·스프레드)에서 위험을 역산. 매일 움직이지만 noise가 섞인다.<br><span class="tag">Merton / KMV EDF</span><span class="tag">market-implied rating</span></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>이 모니터</b>두 축을 결합: 스프레드(일별·market 축)로 이상을 탐지하고, 재무비율(연간·fundamental 축)으로 확인한다. 여기에 지원 가능성(JDA)과 규제 프레임(Basel)이 해석을 보정한다.</div>
+    </div>
+    <p class="src">이력서·소개 문구로는 "Altman Z-score 계보의 재무비율 분석 + market-implied 신호 결합"이 정확한 한 줄 요약입니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>1. 신용평가 모델 계보</h2>
+
+    <h3>Altman Z-score (1968) — 재무비율로 부도를 예측하다</h3>
+    <p>Edward Altman이 1968년 발표한 최초의 다변량 부도 예측 모델. 파산 기업과 생존 기업의 재무비율을
+    discriminant analysis로 구분해 하나의 점수로 합쳤습니다. 신용 판단이 "비율 → 점수 → 판정"이라는 구조를 갖게 된 출발점입니다.</p>
+    <div class="formula">Z = 1.2·X₁ + 1.4·X₂ + 3.3·X₃ + 0.6·X₄ + 1.0·X₅</div>
+    <div class="tblwrap"><table>
+      <tr><th>변수</th><th>정의</th><th>보는 것</th></tr>
+      <tr><td>X₁</td><td>working capital / 총자산</td><td>유동성</td></tr>
+      <tr><td>X₂</td><td>이익잉여금 / 총자산</td><td>누적 수익성·업력</td></tr>
+      <tr><td>X₃</td><td>EBIT / 총자산</td><td>자산 수익성</td></tr>
+      <tr><td>X₄</td><td>자기자본 시가 / 총부채 장부가</td><td>leverage 완충력</td></tr>
+      <tr><td>X₅</td><td>매출 / 총자산</td><td>자산 회전율</td></tr>
+    </table></div>
+    <p>판정 구간: <b>Z &gt; 2.99</b> 안전, <b>1.81–2.99</b> grey zone, <b>Z &lt; 1.81</b> distress.
+    원래 모델은 미국 상장 제조업 기준이라 업종·시장이 다르면 계수와 기준이 달라집니다(Z′, Z″ 등 변형 존재).
+    핵심 교훈은 계수가 아니라 <b>비율은 반드시 같은 업종 안에서 상대 비교해야 한다</b>는 점입니다 — 이 페이지 5절의 실전 해석이 그 적용입니다.</p>
+    <p class="src">출처: Altman (1968), "Financial Ratios, Discriminant Analysis and the Prediction of Corporate Bankruptcy", <i>Journal of Finance</i> 23(4).</p>
+
+    <h3>Merton 모델 (1974) / KMV EDF — 시장에서 부도확률을 역산하다</h3>
+    <p>Robert Merton은 기업의 자기자본을 "기업 자산가치에 대한 call option"으로 봤습니다.
+    만기에 자산가치가 부채보다 작으면 주주는 option을 포기하듯 default를 선택한다는 구조입니다.
+    여기서 핵심 지표가 <b>distance-to-default</b>입니다.</p>
+    <div class="formula">DD = [ ln(V/D) + (μ − σ²/2)·T ] / ( σ·√T ) &nbsp;&nbsp;·&nbsp;&nbsp; EDF = 과거 DD 구간별 실제 부도 빈도</div>
+    <p>V = 자산가치, D = default point(부채), σ = 자산 변동성, T = 기간.
+    DD가 클수록 부도 지점에서 멀다는 뜻이고, KMV(현 Moody's Analytics)는 DD를 실제 부도 사례 데이터에 매핑해
+    EDF(Expected Default Frequency)라는 물리적 부도확률로 바꿨습니다.
+    입력이 재무제표가 아니라 <b>주가와 변동성, 즉 시장 가격</b>이라는 점이 Altman과 정반대입니다.
+    채권 스프레드에서 위험을 읽는 이 모니터는 이 market 축의 연장선에 있습니다.</p>
+    <p class="src">출처: Merton (1974), "On the Pricing of Corporate Debt", <i>Journal of Finance</i> 29(2); Moody's Analytics EDF model documentation.</p>
+  </div>
+
+  <div class="card">
+    <h2>2. 등급 결정 프레임</h2>
+
+    <h3>Moody's scorecard — 정량과 정성을 가중합산하다</h3>
+    <p>신용평가사의 실제 등급 산출 방식. 산업별로 정의된 scorecard에 따라 재무비율 등 정량 factor와
+    산업 전망·시장 지위·경영·거버넌스 등 정성 factor를 각각 등급 구간으로 채점하고, 가중합산해
+    기준 등급(indicated rating)을 만든 뒤, 위원회 조정(notching)을 거쳐 최종 등급이 됩니다.
+    즉 등급은 단일 모델의 출력이 아니라 <b>모델 + 전문가 판단</b>의 결합입니다.</p>
+    <ul>
+      <li>정량 factor: leverage, interest coverage, 수익성, 현금흐름 등 — Altman 계보의 비율들이 그대로 들어간다</li>
+      <li>정성 factor: 산업 위험, 경쟁 지위, 다각화, 재무 정책, 유동성 관리</li>
+      <li>특성: through-the-cycle 관점이라 경기 변동에 등급을 자주 바꾸지 않는다 → 시장보다 <b>느리다</b> (4절의 괴리가 여기서 생긴다)</li>
+    </ul>
+    <p class="src">출처: Moody's Investors Service, <i>Rating Symbols and Definitions</i> 및 산업별 rating methodology 문서.</p>
+
+    <h3>Joint Default Analysis (JDA) — 지원 가능성을 등급으로</h3>
+    <p>은행과 공기업의 등급이 재무비율만으로 설명되지 않는 이유. Moody's의 JDA는
+    ① 그 기관 단독의 신용도(baseline credit assessment)와 ② 정부·모회사가 위기 시 지원할 가능성과 여력을
+    분리해 평가하고, 지원이 기대되면 최종 등급을 단독 신용도보다 몇 notch 위로 올립니다(uplift).</p>
+    <div class="flow">
+      <div class="box"><b>1. 단독 신용도</b>재무비율·사업 위험만으로 본 등급</div>
+      <div class="arrow">+</div>
+      <div class="box"><b>2. 지원 평가</b>지원 주체의 등급, 지원 의지·이력, 동시 부도 상관성(joint default)</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>3. 최종 등급</b>단독 신용도 + uplift notch 수</div>
+    </div>
+    <p>그래서 은행·정책금융기관은 부채비율이 수천 %여도 고등급을 받습니다. 비율이 나쁜 게 아니라,
+    비율만으로 보면 안 되는 issuer라는 뜻입니다.</p>
+    <p class="src">출처: Moody's, <i>Joint Default Analysis</i> methodology (정부 관련 발행자·은행 평가 프레임워크).</p>
+  </div>
+
+  <div class="card">
+    <h2>3. 규제 자본 프레임 (Basel)</h2>
+    <h3>Expected Loss = PD × LGD × EAD</h3>
+    <div class="formula">EL = PD (부도확률) × LGD (부도 시 손실률) × EAD (부도 시 익스포저)</div>
+    <p>은행 규제와 내부 신용평가를 잇는 기본식. PD는 차주가 1년 안에 부도날 확률(등급과 연결),
+    LGD는 담보·회수율을 반영한 손실 비율, EAD는 부도 시점의 노출 금액입니다.
+    예상되는 손실(EL)은 충당금으로, 예상 밖의 손실(unexpected loss)은 자기자본으로 대비한다는 것이 Basel의 뼈대입니다.</p>
+    <h3>BIS 자기자본비율 — 은행 건전성의 기준 지표</h3>
+    <div class="formula">BIS 비율 = 자기자본 / 위험가중자산(RWA) ≥ 8% (+ 자본보전완충자본 등 추가 buffer)</div>
+    <p>은행을 평가할 때는 일반 기업의 부채비율·이자보상배율이 아니라 BIS 비율, 고정이하 여신비율(NPL ratio),
+    충당금 적립률 같은 전용 지표를 씁니다. 예금이 부채로 잡히고, 이자비용에 예금 이자가 포함되기 때문입니다.
+    "은행 부채비율 1,400% = 위험" 같은 해석이 틀리는 이유입니다.</p>
+    <p class="src">출처: Basel Committee on Banking Supervision, <i>Basel Framework</i> (CRE — Calculation of minimum capital requirements).</p>
+  </div>
+
+  <div class="card">
+    <h2>4. 시장 신호 개념</h2>
+
+    <h3>G-spread — 이 모니터의 기본 측정값</h3>
+    <div class="formula">G-spread (bp) = ( 회사채 수익률 − 동일 만기 국고채 수익률 ) × 100</div>
+    <p>회사채가 무위험에 가까운 국채보다 얼마나 더 주는지를 재는 가장 기본적인 신용 위험 가격.
+    만기를 맞춰 비교해야 의미가 있어, 이 모니터는 잔존기간 bucket(3M–30Y)별로 국채 중간값과 매칭하고
+    거래대금 가중평균합니다.</p>
+    <p class="src">출처: Fabozzi, <i>Bond Markets, Analysis and Strategies</i> — credit spread / G-spread 정의; 거래량 가중 집계는 FINRA TRACE 방식.</p>
+
+    <h3>Market-Implied Rating — 스프레드를 등급으로 역변환하다</h3>
+    <p>절차는 세 단계입니다. ① 같은 등급·같은 만기 채권들의 스프레드 분포를 모으고, ② 특정 issuer의 스프레드가
+    어느 등급의 분포에 속하는지 역으로 찾고, ③ 실제 등급과 비교합니다.</p>
+    <div class="formula">괴리 (notch) = market-implied rating − 실제 신용등급</div>
+    <p>시장이 매기는 등급이 실제 등급보다 낮게 벌어지면, 두 가지 중 하나입니다.
+    시장이 과민 반응했거나, 신용평가사가 아직 반영하지 못한 변화가 진행 중이거나.
+    평가사는 through-the-cycle이라 느리고, 시장은 point-in-time이라 빠릅니다 — 그래서 괴리 자체가 정보입니다.
+    이 모니터의 <b>동급대비(vs peer)</b>와 <b>정상대비 z-score</b>가 그 간이 버전입니다.</p>
+
+    <h3>정상대비 z-score — "평소의 자기 자신"과 비교하다</h3>
+    <div class="formula">z₉₀d = ( 최신 스프레드 − 최근 90일 평균 ) / 최근 90일 표준편차</div>
+    <p>스프레드 절대값은 업종·규모마다 평균이 달라 회사 간 단순 비교가 어렵습니다.
+    대신 각 issuer가 <b>자기 자신의 정상 범위</b>에서 얼마나 벗어났는지로 재면 비교 가능해집니다. |z| ≥ 2면 통계적으로 이례적인 상태입니다.</p>
+    <div class="warn"><b>주의 — 이름이 같을 뿐 다른 개념입니다.</b> Altman <b>Z</b>-score는 재무비율 가중합 점수이고,
+    여기서의 <b>z</b>-score는 통계적 표준화 값입니다. 둘 다 "정상에서 얼마나 떨어졌나"를 재지만 입력과 산식이 전혀 다릅니다.</div>
+
+    <h3>스프레드의 기간구조 — 단기와 장기가 말하는 것</h3>
+    <ul>
+      <li><b>단기(≤1Y)만 급등</b> → 당장의 자금 조달 문제, 즉 유동성 경색 신호</li>
+      <li><b>장기만 확대</b> → 당장은 버티지만 사업의 지속 가능성을 의심받는, 펀더멘털 우려</li>
+    </ul>
+    <p class="src">출처: Duffie &amp; Singleton (2003), <i>Credit Risk: Pricing, Measurement, and Management</i> — 스프레드 기간구조 해석; 단기/장기 구분(1Y)은 BIS의 money market 정의.</p>
+
+    <div class="okbox"><b>실측 사례 — 시장이 평가사보다 먼저 움직인 경우 (HD현대중공업, 2025)</b>
+      <ul style="margin-bottom:0">
+        <li>NICE 상향(A→A+, 2025-02-17) 직전 20거래일: 스프레드 <b>−31.0bp 축소</b>, 변경 시점 스프레드 62.0bp, z = −1.07 (자기 정상 범위보다 유의하게 타이트)</li>
+        <li>KIS 상향(A→A+, 2025-03-28) 직전 20거래일: <b>−15.8bp 축소</b> (60일로는 −18.9bp)</li>
+        <li>해석: 시장이 먼저 가격을 움직였고, 두 평가사가 5주 간격으로 뒤따라 상향했다 — market-implied 신호의 선행성을 자기 데이터로 확인한 사례</li>
+        <li>탐지 검증: 이 모니터는 KOFIA 거래 데이터의 종목별 신용등급을 매일 추적해 등급 변경을 자동 탐지한다. HD현대 A→A+는 FnGuide 기준 발표 2025-02-14·17, 거래 데이터 탐지 2025-02-19로 교차 확인됐다</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>5. 실전 해석: 재무비율은 업종 안에서만 읽는다</h2>
+    <p>아래는 DART 2024 사업보고서(연결 기준)에서 수집한 실제 수치입니다. 같은 지표가 업종에 따라 정반대로 읽히는 사례입니다.</p>
+    <div class="tblwrap"><table>
+      <tr><th>구분</th><th>발행자</th><th>부채비율(%)</th><th>이자보상배율(배)</th><th>해석</th></tr>
+      <tr><td>카드</td><td>삼성카드</td><td>247.6</td><td>1.73</td><td style="text-align:left">카드사 중 가장 강함</td></tr>
+      <tr><td>카드</td><td>신한카드</td><td>433.3</td><td>0.72</td><td style="text-align:left">중간</td></tr>
+      <tr><td>카드</td><td>현대카드</td><td>569.1</td><td>0.57</td><td style="text-align:left">중간 이하</td></tr>
+      <tr><td>카드</td><td>롯데카드</td><td>607.5</td><td>0.23</td><td style="text-align:left">가장 약함 — 스프레드도 넓게 거래되는 것과 정합</td></tr>
+      <tr><td>캐피탈</td><td>케이비캐피탈</td><td>631.5</td><td>0.52</td><td style="text-align:left">캐피탈 중 상대적으로 양호</td></tr>
+      <tr><td>캐피탈</td><td>현대캐피탈</td><td>517.2</td><td>0.40</td><td style="text-align:left">중간</td></tr>
+      <tr><td>캐피탈</td><td>하나캐피탈</td><td>656.1</td><td>0.24</td><td style="text-align:left">캐피탈 중 가장 약함</td></tr>
+      <tr><td>은행</td><td>국민·신한·하나·우리·중소기업</td><td>1,279–1,579</td><td>0.32–0.42</td><td style="text-align:left">정상 범위. 이 지표로 은행을 줄 세우면 안 됨 (3절 참조)</td></tr>
+      <tr><td>공기업</td><td>한국전력공사</td><td>496.7</td><td>—</td><td style="text-align:left">이자비용 별도 계정 없음. 지원 프레임(JDA)으로 해석</td></tr>
+    </table></div>
+    <div class="okbox"><b>읽는 규칙 (이 모니터의 판정 방식)</b>
+      <ul style="margin-bottom:0">
+        <li>재무비율 악화 + 스프레드 z ≥ 2 동시 발생 → <b>확인된 신호</b>. 느린 축과 빠른 축이 같은 방향을 가리킨다</li>
+        <li>스프레드만 급등 → 시장 repricing 또는 유동성 이벤트인지 먼저 확인. 재무가 멀쩡하면 과민 반응일 수 있다</li>
+        <li>재무만 악화 → 아직 시장에 안 드러난 변화. watch list에 올려 스프레드를 추적한다</li>
+        <li>은행·공기업은 비율 판정에서 제외하고 BIS·지원 프레임으로 별도 해석한다</li>
+      </ul>
+    </div>
+    <p class="src">재무 수치는 금융감독원 DART 전자공시 OpenAPI, 2024 사업보고서 연결재무제표 기준. 이자보상배율 = 영업이익 / 이자비용. 은행·카드·캐피탈은 유동자산/유동부채 구분 공시가 없어 유동비율은 산출하지 않습니다. LH·주택금융공사·산업은행은 XBRL 공시 API 대상이 아니어서 수치 없음(no data) — 없는 것이 아니라 수집 경로가 다른 경우입니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>참고문헌</h2>
+    <ul class="note" style="margin-left:16px;color:#666;font-size:12.5px">
+      <li>Altman, E. (1968). Financial Ratios, Discriminant Analysis and the Prediction of Corporate Bankruptcy. <i>Journal of Finance</i> 23(4), 589–609.</li>
+      <li>Merton, R. (1974). On the Pricing of Corporate Debt: The Risk Structure of Interest Rates. <i>Journal of Finance</i> 29(2), 449–470.</li>
+      <li>Duffie, D. &amp; Singleton, K. (2003). <i>Credit Risk: Pricing, Measurement, and Management</i>. Princeton University Press.</li>
+      <li>Fabozzi, F. <i>Bond Markets, Analysis and Strategies</i>. Pearson.</li>
+      <li>Moody's Investors Service. <i>Rating Symbols and Definitions</i>; <i>Joint Default Analysis</i> methodology.</li>
+      <li>Basel Committee on Banking Supervision. <i>Basel Framework</i> — CRE (Calculation of minimum capital requirements).</li>
+      <li>Bank for International Settlements. Money market 통계 정의 (잔존기간 1년 이하 단기자금시장).</li>
+      <li>FINRA TRACE. 거래량 가중 집계 방식.</li>
+    </ul>
+  </div>
+  </div><!-- /ko -->
+
+  <!-- ================= EN ================= -->
+  <div class="en">
+  <h1>Credit Rating Concepts Guide</h1>
+  <div class="sub">Where this monitor stands — the established frameworks it builds on, from financial ratios to market signals</div>
+
+  <div class="card">
+    <h2>Overview: Two Axes for Measuring Credit</h2>
+    <p>The history of credit assessment converges on one question: <b>can this issuer repay, and how do we express that risk as a number?</b> Answers split into two axes.</p>
+    <div class="flow">
+      <div class="box"><b>Fundamental axis (slow)</b>Judged from financial-statement ratios. Published annually — verifiable, but late.<br><span class="tag">Altman Z-score</span><span class="tag">scorecard</span></div>
+      <div class="arrow">+</div>
+      <div class="box"><b>Market axis (fast)</b>Risk implied by market prices (equity, spreads). Moves daily, but contains noise.<br><span class="tag">Merton / KMV EDF</span><span class="tag">market-implied rating</span></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>This monitor</b>Combines both: spreads (daily, market axis) detect anomalies, financial ratios (annual, fundamental axis) confirm them — with support (JDA) and regulation (Basel) adjusting the interpretation.</div>
+    </div>
+    <p class="src">One-line summary: "financial-ratio analysis in the Altman Z-score lineage, combined with market-implied signals."</p>
+  </div>
+
+  <div class="card">
+    <h2>1. The Credit-Model Lineage</h2>
+    <h3>Altman Z-score (1968) — predicting default from ratios</h3>
+    <p>The first multivariate default-prediction model. Altman used discriminant analysis on bankrupt vs. surviving firms to collapse five ratios into one score — the origin of the "ratios → score → judgement" structure.</p>
+    <div class="formula">Z = 1.2·X₁ + 1.4·X₂ + 3.3·X₃ + 0.6·X₄ + 1.0·X₅</div>
+    <div class="tblwrap"><table>
+      <tr><th>Variable</th><th>Definition</th><th>Captures</th></tr>
+      <tr><td>X₁</td><td>Working capital / total assets</td><td>Liquidity</td></tr>
+      <tr><td>X₂</td><td>Retained earnings / total assets</td><td>Cumulative profitability</td></tr>
+      <tr><td>X₃</td><td>EBIT / total assets</td><td>Asset productivity</td></tr>
+      <tr><td>X₄</td><td>Market value of equity / book liabilities</td><td>Leverage buffer</td></tr>
+      <tr><td>X₅</td><td>Sales / total assets</td><td>Asset turnover</td></tr>
+    </table></div>
+    <p>Zones: <b>Z &gt; 2.99</b> safe, <b>1.81–2.99</b> grey, <b>Z &lt; 1.81</b> distress. The original calibration is US listed manufacturers; coefficients shift by sector and market (Z′, Z″ variants). The durable lesson is not the coefficients but that <b>ratios only mean something relative to peers in the same industry</b> — see Section 5.</p>
+    <p class="src">Source: Altman (1968), <i>Journal of Finance</i> 23(4).</p>
+
+    <h3>Merton model (1974) / KMV EDF — implying default risk from the market</h3>
+    <p>Merton treated equity as a call option on the firm's assets: at maturity, if asset value falls below debt, shareholders walk away — default. The key quantity is <b>distance-to-default</b>.</p>
+    <div class="formula">DD = [ ln(V/D) + (μ − σ²/2)·T ] / ( σ·√T ) &nbsp;&nbsp;·&nbsp;&nbsp; EDF = empirical default frequency at that DD</div>
+    <p>KMV (now Moody's Analytics) mapped DD to actual default histories to produce EDF, a physical default probability. Its inputs are <b>market prices and volatility, not statements</b> — the exact opposite of Altman. Reading risk from bond spreads, as this monitor does, sits on this market axis.</p>
+    <p class="src">Sources: Merton (1974), <i>Journal of Finance</i> 29(2); Moody's Analytics EDF documentation.</p>
+  </div>
+
+  <div class="card">
+    <h2>2. How Ratings Are Actually Assigned</h2>
+    <h3>Moody's scorecard — weighted quantitative + qualitative factors</h3>
+    <p>Agency ratings are produced with sector scorecards: quantitative factors (leverage, coverage, profitability, cash flow) and qualitative factors (industry outlook, market position, management, governance) are each scored into rating bands, weighted into an indicated rating, then adjusted by committee notching. A rating is <b>model output plus expert judgement</b>, assessed through-the-cycle — which makes agencies deliberately slower than markets (the gap in Section 4).</p>
+    <p class="src">Source: Moody's Investors Service, <i>Rating Symbols and Definitions</i> and sector rating methodologies.</p>
+
+    <h3>Joint Default Analysis (JDA) — turning support into notches</h3>
+    <p>Why banks and public corporations outrate their standalone ratios. JDA separates ① standalone credit strength (baseline credit assessment) from ② the likelihood and capacity of government or parent support, and uplifts the final rating by notches when support is expected.</p>
+    <div class="flow">
+      <div class="box"><b>1. Standalone profile</b>Rating from ratios and business risk alone</div>
+      <div class="arrow">+</div>
+      <div class="box"><b>2. Support assessment</b>Supporter's rating, willingness, track record, joint-default correlation</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>3. Final rating</b>Standalone + uplift notches</div>
+    </div>
+    <p>A bank with a 1,400% debt ratio and a top rating is not a data error — it is an issuer that ratios alone cannot judge.</p>
+    <p class="src">Source: Moody's, <i>Joint Default Analysis</i> methodology.</p>
+  </div>
+
+  <div class="card">
+    <h2>3. The Regulatory Capital Frame (Basel)</h2>
+    <h3>Expected Loss = PD × LGD × EAD</h3>
+    <div class="formula">EL = PD (probability of default) × LGD (loss given default) × EAD (exposure at default)</div>
+    <p>The bridge between internal credit assessment and bank regulation. Expected losses are covered by provisions; unexpected losses by capital — the skeleton of Basel.</p>
+    <h3>BIS capital ratio — the right yardstick for banks</h3>
+    <div class="formula">BIS ratio = Capital / Risk-weighted assets (RWA) ≥ 8% (+ conservation and other buffers)</div>
+    <p>Banks are assessed with the BIS ratio, NPL ratio and provisioning coverage — not corporate debt ratios or interest coverage, because deposits are liabilities and interest expense includes deposit interest. Reading a bank's 1,400% debt ratio as distress is simply the wrong frame.</p>
+    <p class="src">Source: Basel Committee on Banking Supervision, <i>Basel Framework</i> (CRE).</p>
+  </div>
+
+  <div class="card">
+    <h2>4. Market-Signal Concepts</h2>
+    <h3>G-spread — this monitor's base measurement</h3>
+    <div class="formula">G-spread (bp) = ( corporate bond yield − same-maturity KTB yield ) × 100</div>
+    <p>The price of credit risk over a near-risk-free benchmark. Maturities must be matched, so this monitor buckets remaining maturity (3M–30Y), matches each bucket to the KTB median, and amount-weights the result.</p>
+    <p class="src">Sources: Fabozzi, <i>Bond Markets, Analysis and Strategies</i>; FINRA TRACE volume-weighted aggregation.</p>
+
+    <h3>Market-implied rating — inverting spreads back into a rating</h3>
+    <p>Collect the spread distribution for each rating and maturity, locate which rating's distribution an issuer's spread falls into, and compare with the actual rating.</p>
+    <div class="formula">Gap (notches) = market-implied rating − actual rating</div>
+    <p>A widening gap means either the market is overreacting, or change is under way that through-the-cycle agencies have not yet reflected. The gap itself is information. This monitor's <b>vs-peer</b> and <b>z-score vs normal</b> columns are a simplified version of the same idea.</p>
+
+    <h3>Z-score vs normal — comparing an issuer with its own history</h3>
+    <div class="formula">z₉₀d = ( latest spread − 90-day mean ) / 90-day standard deviation</div>
+    <p>Absolute spread levels differ by industry and size, so cross-issuer level comparisons mislead. Measuring deviation from each issuer's <b>own normal range</b> restores comparability; |z| ≥ 2 is statistically unusual.</p>
+    <div class="warn"><b>Caution — same name, different concept.</b> The Altman <b>Z</b>-score is a weighted sum of financial ratios; this <b>z</b>-score is a statistical standardisation. Both measure distance from normal, but their inputs and formulas are unrelated.</div>
+
+    <h3>Term structure of spreads — what short and long ends say</h3>
+    <ul>
+      <li><b>Short end (≤1Y) spikes alone</b> → near-term funding trouble: a liquidity-stress signal</li>
+      <li><b>Long end widens alone</b> → doubts about business sustainability: a fundamental concern</li>
+    </ul>
+    <p class="src">Sources: Duffie &amp; Singleton (2003), <i>Credit Risk</i>; BIS money-market definition (≤1Y) for the short/long split.</p>
+
+    <div class="okbox"><b>Case study — the market moved before the agencies (HD Hyundai Heavy Industries, 2025)</b>
+      <ul style="margin-bottom:0">
+        <li>In the 20 trading days before the NICE upgrade (A→A+, 2025-02-17): spread <b>tightened −31.0bp</b>, spread at the change 62.0bp, z = −1.07 (significantly tighter than its own normal range)</li>
+        <li>Before the KIS upgrade (A→A+, 2025-03-28): <b>−15.8bp over 20 days</b> (−18.9bp over 60 days)</li>
+        <li>Reading: the market repriced first; two agencies followed five weeks apart — the lead of market-implied signals, verified on this monitor's own data</li>
+        <li>Detection check: this monitor tracks per-bond ratings in KOFIA trade data daily. HD Hyundai's A→A+ was announced 2025-02-14/17 (FnGuide) and detected in trade data on 2025-02-19</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>5. In Practice: Ratios Only Read Within an Industry</h2>
+    <p>Actual figures from DART 2024 annual reports (consolidated). The same metric reads in opposite directions across industries.</p>
+    <div class="tblwrap"><table>
+      <tr><th>Sector</th><th>Issuer</th><th>Debt ratio (%)</th><th>Interest coverage (×)</th><th>Reading</th></tr>
+      <tr><td>Card</td><td>Samsung Card</td><td>247.6</td><td>1.73</td><td style="text-align:left">Strongest among card issuers</td></tr>
+      <tr><td>Card</td><td>Shinhan Card</td><td>433.3</td><td>0.72</td><td style="text-align:left">Middle</td></tr>
+      <tr><td>Card</td><td>Hyundai Card</td><td>569.1</td><td>0.57</td><td style="text-align:left">Below middle</td></tr>
+      <tr><td>Card</td><td>Lotte Card</td><td>607.5</td><td>0.23</td><td style="text-align:left">Weakest — consistent with its wide trading spread</td></tr>
+      <tr><td>Capital</td><td>KB Capital</td><td>631.5</td><td>0.52</td><td style="text-align:left">Relatively sound for the sector</td></tr>
+      <tr><td>Capital</td><td>Hyundai Capital</td><td>517.2</td><td>0.40</td><td style="text-align:left">Middle</td></tr>
+      <tr><td>Capital</td><td>Hana Capital</td><td>656.1</td><td>0.24</td><td style="text-align:left">Weakest among capital issuers</td></tr>
+      <tr><td>Bank</td><td>KB · Shinhan · Hana · Woori · IBK</td><td>1,279–1,579</td><td>0.32–0.42</td><td style="text-align:left">Normal range — do not rank banks on these (Section 3)</td></tr>
+      <tr><td>Public</td><td>KEPCO</td><td>496.7</td><td>—</td><td style="text-align:left">No separate interest-expense line; read through the support frame (JDA)</td></tr>
+    </table></div>
+    <div class="okbox"><b>Reading rules used by this monitor</b>
+      <ul style="margin-bottom:0">
+        <li>Ratios deteriorate <b>and</b> spread z ≥ 2 together → a <b>confirmed signal</b>: the slow and fast axes point the same way</li>
+        <li>Spread spikes alone → check for market repricing or a liquidity event first; sound financials may mean overreaction</li>
+        <li>Ratios deteriorate alone → a change the market has not priced yet; watch-list the issuer and track its spread</li>
+        <li>Banks and public corporations are excluded from ratio judgement and read through BIS / support frames instead</li>
+      </ul>
+    </div>
+    <p class="src">Financials: Financial Supervisory Service DART OpenAPI, FY2024 annual reports, consolidated. Interest coverage = operating profit / interest expense. Banks, card and capital issuers do not disclose current-asset/current-liability splits, so no current ratio is computed. LH, Korea Housing Finance Corp. and KDB are outside the XBRL API's coverage (no data) — a collection-path gap, not missing disclosure.</p>
+  </div>
+
+  <div class="card">
+    <h2>References</h2>
+    <ul class="note" style="margin-left:16px;color:#666;font-size:12.5px">
+      <li>Altman, E. (1968). Financial Ratios, Discriminant Analysis and the Prediction of Corporate Bankruptcy. <i>Journal of Finance</i> 23(4), 589–609.</li>
+      <li>Merton, R. (1974). On the Pricing of Corporate Debt: The Risk Structure of Interest Rates. <i>Journal of Finance</i> 29(2), 449–470.</li>
+      <li>Duffie, D. &amp; Singleton, K. (2003). <i>Credit Risk: Pricing, Measurement, and Management</i>. Princeton University Press.</li>
+      <li>Fabozzi, F. <i>Bond Markets, Analysis and Strategies</i>. Pearson.</li>
+      <li>Moody's Investors Service. <i>Rating Symbols and Definitions</i>; <i>Joint Default Analysis</i> methodology.</li>
+      <li>Basel Committee on Banking Supervision. <i>Basel Framework</i> — CRE (Calculation of minimum capital requirements).</li>
+      <li>Bank for International Settlements. Money-market definition (short-term funding market, ≤ 1 year).</li>
+      <li>FINRA TRACE. Volume-weighted aggregation.</li>
+    </ul>
+  </div>
+  </div><!-- /en -->
+
+  <div class="note" style="text-align:center;border-top:1px solid #eee;padding-top:12px">
+    <a href="https://sdykim.me/" style="color:#888">sdykim.me</a> · Doyeon Kim
+  </div>
+</div>
+<script>
+  let LANG = localStorage.getItem('bond-lang') || 'ko';
+  function applyLang(){
+    document.body.classList.toggle('lang-en', LANG === 'en');
+    document.documentElement.lang = LANG === 'en' ? 'en' : 'ko';
+    document.getElementById('langBtn').textContent = LANG === 'en' ? '한' : 'EN';
+    document.title = LANG === 'en'
+      ? 'Credit Rating Concepts Guide — Corporate Bond Credit Spread Monitor'
+      : '신용평가 개념 가이드 — 회사채 신용 스프레드 모니터';
+  }
+  document.getElementById('langBtn').addEventListener('click', () => {
+    LANG = LANG === 'en' ? 'ko' : 'en';
+    localStorage.setItem('bond-lang', LANG);
+    applyLang();
+  });
+  applyLang();
+</script>
+<script>/*VIEWCOUNT*/(function(){try{fetch('https://abacus.jasoncameron.dev/hit/sdykim-bond-credit-monitor/concepts',{keepalive:true}).catch(function(){});}catch(e){}})();</script>
+</body>
+</html>

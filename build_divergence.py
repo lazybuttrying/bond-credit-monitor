@@ -309,6 +309,7 @@ HTML = """<!DOCTYPE html>
 <div class="wrap" style="padding-top:0"><div class="note" style="text-align:center;border-top:1px solid #eee;padding-top:12px">
 <a href="https://sdykim.me/" style="color:#888">sdykim.me</a> · Doyeon Kim
 </div></div>
+<script>/*VIEWCOUNT*/(function(){try{fetch('https://abacus.jasoncameron.dev/hit/sdykim-bond-credit-monitor/divergence',{keepalive:true}).catch(function(){});}catch(e){}})();</script>
 </body>
 </html>"""
 
