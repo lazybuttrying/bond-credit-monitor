@@ -3,9 +3,11 @@
 Computes daily group-median spreads from the user's own trade data (same
 methodology as the monitor: per-issuer 5-trading-day rolling median, then
 the median across issuers each day), slices a window around each major 2026
-event, and writes github_pages/monthly/index.html from template.html with
-the data inlined (never a separate data file: the 2026-10-25 cache-skew
-lesson).
+event, and writes the public page to github_pages/index.html from the
+template stored under github_pages/monthly/ with the data inlined (never
+a separate data file: the 2026-10-25 cache-skew lesson). The monthly
+directory is now only internal storage for the template and cached data;
+there is no separate public monthly address.
 
 Daily series are cached in github_pages/monthly/daily_series_v2.json so
 re-runs (e.g. verdict edits) are instant.
@@ -185,8 +187,8 @@ EVENTS = [
         "extra_title": "언론계 스프레드 (2026년 전체, bp)",
         "extra_title_en": "Media Spreads (full-year 2026, bp)",
         "extra_keys": ["cb", "sbs"],
-        "extra_desc": "중앙일보는 3~4월에 이미 320~366bp대에서 거래되며 위기 전부터 스트레스를 반영했고, 6월 전후로는 거래가 끊겼다. SBS는 드문드문 점으로만 보인다. 점선은 시장 전체 중앙값이다.",
-        "extra_desc_en": "중앙일보 already traded in the 320-366bp range in March and April, pricing stress well before the crisis, and stopped trading around June. SBS appears only as sparse dots. The dotted line is the whole-market median.",
+        "extra_desc": "중앙일보는 3~4월에 이미 320~366bp대에서 거래되며 위기 전부터 스트레스를 반영했고, 6월 전후로는 거래가 끊겼다. SBS는 거래일이 6일뿐이라 큰 파란 마름모로 표시했다. 점선은 시장 전체 중앙값이다.",
+        "extra_desc_en": "중앙일보 already traded in the 320-366bp range in March and April, pricing stress well before the crisis, and stopped trading around June. SBS traded on only six days, so it is shown as large blue diamonds. The dotted line is the whole-market median.",
         "extra_full_year": True,
         "extra_markers": [{"date": "2026-06-12", "label": "사건", "color": "#dc2626"}],
         "intraday": {
@@ -269,10 +271,10 @@ EVENTS = [
         "verdict_qual": "사전 카드다. 거래 데이터가 2026-10-20에서 멈춰 있어 사건일(10-26) 이후 구간은 아직 없다. 사건 후 판정은 데이터 복구 뒤 20거래일이 지난 뒤 확정한다",
         "verdict_en": "This is a pre-event card. Trade data stops at 2026-10-20, so the post-event window (after Oct 26) does not exist yet. The post-event verdict will be finalized 20 trading days after the data feed recovers.",
         "markers": [],
-        "chart_title": "차트: 사건 전 60거래일 국고채·상업은행채·일반회사채 스프레드 (bp)",
-        "chart_title_en": "Chart: KTB, commercial bank and regular corporate spreads, 60 trading days before the event (bp)",
-        "chart_desc": "실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다. 사건일 이후 구간은 데이터 복구되는 대로 붙는다.",
-        "chart_desc_en": "The three solid lines are the group medians and the dotted line is the whole-market median. The KTB line sits near 0 because it is the baseline itself. Gaps are days when a group had no trades to compute a median. The post-event window will be attached once the data feed recovers.",
+        "chart_title": "차트: 사건 전 60거래일, 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)",
+        "chart_title_en": "Chart: Commercial bank and regular corporate spreads versus maturity-matched KTBs, 60 trading days before the event (bp)",
+        "chart_desc": "스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다. 사건일 이후 구간은 데이터 복구되는 대로 붙는다.",
+        "chart_desc_en": "Each spread is a bond yield minus the median KTB yield in the same date and remaining-maturity bucket. The black horizontal line is the KTB benchmark at 0 bp. The dotted line is the whole-market median. Gaps are days when a group had no trades to compute a median. The post-event window will be attached once the data feed recovers.",
         "extra_title": "정책금융채 스프레드 (bp)",
         "extra_title_en": "Policy Bank Bond Spreads (bp)",
         "extra_keys": ["policy"],
@@ -574,15 +576,12 @@ def main():
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)
-    with open(os.path.join(MONTHLY_DIR, "index.html"), "w", encoding="utf-8") as f:
-        f.write(html)
-    # The events page is also the site main page: the root index is the
-    # same document, served as-is (no event pre-selected on load).
+    # The events page is the site main page. It is served only from the
+    # root index, with no event pre-selected on load.
     root_path = os.path.join(DATA, "github_pages", "index.html")
     with open(root_path, "w", encoding="utf-8") as f:
         f.write(html)
-    print("wrote index.html", len(html.encode("utf-8")), "bytes")
-    print("wrote root index.html (events page copy)", len(html.encode("utf-8")), "bytes")
+    print("wrote root index.html", len(html.encode("utf-8")), "bytes")
 
 
 if __name__ == "__main__":

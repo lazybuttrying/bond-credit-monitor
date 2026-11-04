@@ -66,7 +66,7 @@
     <div class="search-wrap">
       <div class="search-box">
         <span class="mag">⌕</span>
-        <input type="text" id="eventSearch" placeholder="사건 검색" autocomplete="off">
+        <input type="text" id="eventSearch" placeholder="한국 회사채 관련 뉴스 기사 링크" autocomplete="off">
       </div>
       <div class="search-drop" id="searchDrop"></div>
     </div>
@@ -79,8 +79,8 @@
     <ul class="topic" id="topicList"></ul>
     <div class="verdict" id="verdictLine"></div>
     <div class="stats" id="statsLine"></div>
-    <h3 class="chart-title" id="chartTitle">차트: 사건 전후 국고채·상업은행채·일반회사채 스프레드 (bp)</h3>
-    <div class="chart-desc" id="chartDesc">실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.</div>
+    <h3 class="chart-title" id="chartTitle">차트: 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)</h3>
+    <div class="chart-desc" id="chartDesc">스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이고 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.</div>
     <div id="chart"></div>
     <div id="extraWrap" style="display:none">
       <h3 class="chart-title" id="extraTitle"></h3>
@@ -117,11 +117,12 @@ ko: {
   past_label: "이전 사건",
   sources_title: "인용 기사",
   page_note: "뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.",
-  search_ph: "사건 검색",
+  search_ph: "한국 회사채 관련 뉴스 기사 링크",
   no_results: "검색 결과가 없습니다",
   chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
-  chart_title: "차트: 사건 전후 국고채·상업은행채·일반회사채 스프레드 (bp)",
-  chart_desc: "실선 3개는 각 그룹의 중앙값, 점선은 시장 전체 중앙값이다. 국고채 선은 기준선 자체라 0 근처에 붙어 있다. 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.",
+  chart_title: "차트: 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)",
+  chart_desc: "스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이고 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.",
+  benchmark_label: "국고채 기준 0bp",
   lang_btn: "EN",
   nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
   nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
@@ -144,11 +145,12 @@ en: {
   past_label: "Past events",
   sources_title: "Cited articles",
   page_note: "News summaries follow the Jan-Sep 2026 corporate bond news timeline and are background only. Charts use my own trade data (daily medians after per-issuer 5-day rolling-median smoothing).",
-  search_ph: "Search events",
+  search_ph: "Paste a link to a Korean corporate bond news article",
   no_results: "No matching events",
   chart_fail: "Could not load the chart (chart library connection failed).",
-  chart_title: "Chart: KTB, commercial bank and regular corporate spreads around the event (bp)",
-  chart_desc: "The three solid lines are the group medians, the dotted line is the whole-market median. The KTB line sits near 0 because it is the baseline itself. The red dotted lines mark policy rate hike days. Gaps are days when a group had no trades to compute a median.",
+  chart_title: "Chart: Commercial bank and regular corporate spreads versus maturity-matched KTBs (bp)",
+  chart_desc: "Each spread is a bond yield minus the median KTB yield in the same date and remaining-maturity bucket. The black horizontal line is the KTB benchmark at 0 bp. The dotted line is the whole-market median, and the red dotted lines mark policy rate hike days. Gaps are days when a group had no trades to compute a median.",
+  benchmark_label: "KTB benchmark, 0 bp",
   lang_btn: "한",
   nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
   nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
@@ -185,9 +187,12 @@ function buildButtons() {
 const searchInput = document.getElementById('eventSearch');
 const searchDrop = document.getElementById('searchDrop');
 function eventHaystack(ev) {
+  const sourceText = (ev.sources || []).map(s =>
+    [s.topic, s.topic_en, s.outlet, s.outlet_en, s.url].join(' ')).join(' ');
   return (ev.title + ' ' + (ev.title_en || '') + ' ' +
           (ev.date_label || '') + ' ' + (ev.date_label_en || '') + ' ' +
-          (ev.topic || []).join(' ') + ' ' + (ev.topic_en || []).join(' ')).toLowerCase();
+          (ev.topic || []).join(' ') + ' ' + (ev.topic_en || []).join(' ') + ' ' +
+          sourceText).toLowerCase();
 }
 function matchEvents(q) {
   q = q.trim().toLowerCase();
@@ -243,7 +248,6 @@ document.addEventListener('click', e => {
 });
 const GROUP_STYLE = {
   market: { width: 2, color: '#666', dash: 'dot' },
-  ktb: { width: 2, color: '#16a34a' },
   bank: { width: 2, color: '#2563eb' },
   corp: { width: 2, color: '#9333ea' },
 };
@@ -257,6 +261,37 @@ const EXTRA_STYLE = {
   cb: { width: 2, color: '#dc2626' },
   policy: { width: 2, color: '#0e7490' },
 };
+function isSparseSeries(y) {
+  let observed = 0;
+  let isolated = 0;
+  y.forEach((v, i) => {
+    if (v === null || v === undefined) return;
+    observed += 1;
+    const prev = i > 0 ? y[i - 1] : null;
+    const next = i + 1 < y.length ? y[i + 1] : null;
+    if ((prev === null || prev === undefined) &&
+        (next === null || next === undefined)) isolated += 1;
+  });
+  return observed > 0 && observed / y.length <= 0.10 && isolated >= 3;
+}
+function extraTrace(k, x, y, name) {
+  const style = EXTRA_STYLE[k];
+  if (isSparseSeries(y)) {
+    return {
+      x: x, y: y, mode: 'markers', name: name, line: style,
+      marker: {
+        symbol: 'diamond', size: 18, color: style.color, opacity: 0.95,
+        line: { color: '#fff', width: 2 }
+      },
+      connectgaps: false
+    };
+  }
+  return {
+    x: x, y: y, mode: 'lines+markers', name: name, line: style,
+    marker: { size: 4, color: style.color },
+    connectgaps: false
+  };
+}
 let currentId = null;
 let cardShown = false;
 function isMobile() { return window.innerWidth < 640; }
@@ -299,17 +334,24 @@ function render(id) {
   const el = document.getElementById('chart');
   try {
     if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
-    const traces = ['market', 'ktb', 'bank', 'corp'].map(k => ({
+    const traces = ['market', 'bank', 'corp'].map(k => ({
       x: ev.dates, y: ev.series[k], mode: 'lines', name: GROUP_NAME[k], line: GROUP_STYLE[k]
     }));
-    const shapes = ev.markers.map(mk => ({
+    const shapes = [{
+      type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0,
+      line: { color: '#111827', width: 1.6 }
+    }].concat(ev.markers.map(mk => ({
       type: 'line', x0: mk.date, x1: mk.date, y0: 0, y1: 1, yref: 'paper',
       line: { color: mk.color, width: 1.5, dash: 'dash' }
-    }));
-    const annotations = ev.markers.map(mk => ({
+    })));
+    const annotations = [{
+      xref: 'paper', x: 0.01, y: 0, text: t('benchmark_label'), showarrow: false,
+      xanchor: 'left', yanchor: 'bottom', yshift: 5,
+      font: { size: 11, color: '#111827' }
+    }].concat(ev.markers.map(mk => ({
       x: mk.date, y: 1, yref: 'paper', text: markerLabel(mk), showarrow: false,
       font: { size: 11, color: mk.color }
-    }));
+    })));
     Plotly.newPlot('chart', traces, {
       margin: { t: 20, r: 10, b: 40, l: 50 },
       yaxis: { title: 'bp' }, height: 360,
@@ -329,11 +371,8 @@ function render(id) {
       if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
       const keys = ev.extra.keys.concat(['market']);
       const x2 = ev.extra.dates || ev.dates;
-      const traces2 = keys.map(k => ({
-        x: x2, y: ev.extra.series[k], mode: 'lines+markers',
-        name: EXTRA_NAME[k], line: EXTRA_STYLE[k],
-        marker: { size: 3, color: EXTRA_STYLE[k].color }
-      }));
+      const traces2 = keys.map(k =>
+        extraTrace(k, x2, ev.extra.series[k], EXTRA_NAME[k]));
       const shapes2 = (ev.extra.markers || []).map(mk => ({
         type: 'line', x0: mk.date, x1: mk.date, y0: 0, y1: 1, yref: 'paper',
         line: { color: mk.color, width: 1.5, dash: 'dash' }
