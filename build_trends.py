@@ -65,7 +65,61 @@ def main():
         f.write(";")
     n_ind = len({v["industry"] for v in payload["series"].values()})
     print(f"issuers: {len(payload['series'])} | industries: {n_ind} | days: {len(dates)}")
+    build_market()
     build_page()
+
+
+def build_market():
+    """Market-wide series from FreeSIS statistics (freesis/data/*.parquet).
+
+    Separate source from the trade-based issuer medians above: final
+    quoted yields for the spread, exchange-reported aggregates for the
+    trading value. Missing parquet files skip the section silently so
+    the nightly build never breaks on an absent FreeSIS fetch.
+    """
+    fdir = os.path.join(DATA, "freesis", "data")
+    market = {}
+    try:
+        y = pd.read_parquet(os.path.join(fdir, "final_yields.parquet"))
+        y["pm"] = pd.to_numeric(y["pm"], errors="coerce")
+        piv = y.pivot_table(index="date", columns="instrument",
+                            values="pm", aggfunc="first")
+        ktb, aa, bbb = ("국고채권(3년)", "회사채(무보증3년)AA-",
+                        "회사채(무보증3년)BBB-")
+        if {ktb, aa, bbb} <= set(piv.columns):
+            dates = [d for d in piv.index if pd.notna(piv[ktb][d])]
+            market["spread"] = {
+                "dates": dates,
+                "aa_bp": [round(float((piv[aa][d] - piv[ktb][d]) * 100), 1)
+                          for d in dates],
+                "bbb_bp": [round(float((piv[bbb][d] - piv[ktb][d]) * 100), 1)
+                           for d in dates],
+            }
+    except Exception as err:
+        print(f"market yields skipped: {err}")
+    try:
+        t = pd.read_parquet(os.path.join(fdir, "trade_status.parquet"))
+        v = t[(t["market"] == "otc") & (t["metric"] == "value")]
+        v = v.sort_values("date")
+        corp = (v["corporate"] / 100).round(0)  # million KRW -> eok KRW
+        ma20 = corp.rolling(20, min_periods=20).mean().round(0)
+        market["trade"] = {
+            "dates": v["date"].tolist(),
+            "corp_eok": [int(x) for x in corp],
+            "corp_ma20_eok": [None if pd.isna(x) else int(x) for x in ma20],
+        }
+    except Exception as err:
+        print(f"market trade skipped: {err}")
+    if not market:
+        print("market: no FreeSIS data, section omitted")
+        return
+    last = max(s["dates"][-1] for s in market.values() if s.get("dates"))
+    market["asof"] = last
+    with open(os.path.join(DATA, "github_pages", "market_data.js"), "w") as f:
+        f.write("window.MARKET = ")
+        json.dump(market, f, ensure_ascii=False)
+        f.write(";")
+    print(f"market: sections {sorted(market)} | asof {last}")
 
 
 HTML = """<!DOCTYPE html>
@@ -102,15 +156,18 @@ HTML = """<!DOCTYPE html>
     <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
   </div>
   <div class="sub" id="metaLine"></div>
+  <div id="marketSection"></div>
   <div id="sections"></div>
   <div class="note" data-i18n="note">20거래일 이동중앙값 기준이라 단기 노이즈가 제거됨.
   단기 = 잔존기간 1년 이하, 장기 = 1년 초과. 같은 회사의 단기 스프레드가 치솟으면
   유동성 경색 신호일 수 있음. 스프레드 = 자사 수익률 − 잔존기간 매칭 국고채 수익률.</div>
 </div>
 <script src="../trends_data.js"></script>
+<script src="../market_data.js"></script>
 <script>
 (function(){
   const T = window.TRENDS;
+  const M = window.MARKET || null;
   const META = /*META_JSON*/;
   const I18N = {
     ko: {
@@ -118,6 +175,12 @@ HTML = """<!DOCTYPE html>
       back: "← 오늘자 스프레드 모니터",
       note: "20거래일 이동중앙값 기준이라 단기 노이즈가 제거됨.\\n  단기 = 잔존기간 1년 이하, 장기 = 1년 초과. 같은 회사의 단기 스프레드가 치솟으면\\n  유동성 경색 신호일 수 있음. 스프레드 = 자사 수익률 − 잔존기간 매칭 국고채 수익률.",
       short: "단기 (≤1년)", long: "장기 (>1년)", median: "중간값",
+      mkt_spread: "시장 전체, 회사채 스프레드 (최종호가 기준)",
+      mkt_spread_meta: "회사채 무보증 3년 등급별 수익률에서 국고채 3년 수익률을 뺀 값. 체결 기반 발행자 스프레드와는 산출 방식이 다름.",
+      mkt_trade: "시장 전체, 회사채 거래대금 (장외)",
+      mkt_trade_meta: "장외 회사채 거래대금 일별 합계와 20거래일 이동평균.",
+      mkt_source: d => `출처: 금융투자협회 FreeSIS, 기준일 ${d}`,
+      ma20: "20일 이동평균", eok: "억원",
       count: n => `${n}개 발행자 · 20일 이동중앙값`,
       meta: (days, first, last) => `최근 ${days}거래일 (${first} ~ ${last}) · 20거래일 이동중앙값 · 유동성 상위 발행자`,
       nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
@@ -130,6 +193,12 @@ HTML = """<!DOCTYPE html>
       back: "← Today's Spread Monitor",
       note: "20-trading-day rolling medians filter out short-term noise.\\n  Short = remaining maturity ≤1Y, Long = >1Y. A spike in a company's short-term spread\\n  may signal liquidity stress. Spread = own yield − tenor-matched KTB yield.",
       short: "Short (≤1Y)", long: "Long (>1Y)", median: "Median",
+      mkt_spread: "Market-wide, corporate bond spread (final quoted yields)",
+      mkt_spread_meta: "Unguaranteed 3Y corporate yields by rating minus the 3Y KTB yield. Quoted benchmark yields, computed differently from the trade-based issuer spreads below.",
+      mkt_trade: "Market-wide, corporate bond trading value (OTC)",
+      mkt_trade_meta: "Daily OTC corporate bond trading value with a 20-trading-day moving average.",
+      mkt_source: d => `Source: KOFIA FreeSIS, as of ${d}`,
+      ma20: "20d moving avg", eok: "KRW 100M",
       count: n => `${n} issuers · 20d rolling median`,
       meta: (days, first, last) => `Last ${days} trading days (${first} ~ ${last}) · 20-trading-day rolling median · most liquid issuers`,
       nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
@@ -154,6 +223,47 @@ HTML = """<!DOCTYPE html>
     (groups[s.industry] = groups[s.industry] || []).push([name, s]);
   });
   const order = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+  function renderMarket(){
+    const host = document.getElementById('marketSection');
+    if (!M) { host.innerHTML = ''; return; }
+    let html = '';
+    if (M.spread) html += `<div class="card"><h2>${t('mkt_spread')}</h2>` +
+      `<div class="meta">${t('mkt_spread_meta')}</div><div class="chart" id="mktSpread" style="height:280px"></div></div>`;
+    if (M.trade) html += `<div class="card"><h2>${t('mkt_trade')}</h2>` +
+      `<div class="meta">${t('mkt_trade_meta')}</div><div class="chart" id="mktTrade" style="height:280px"></div></div>`;
+    if (html) html += `<div class="meta" style="margin:-6px 0 14px">${t('mkt_source')(fmtD(M.asof))}</div>`;
+    host.innerHTML = html;
+    if (M.spread) {
+      const sd = M.spread.dates.map(fmtD);
+      Plotly.newPlot('mktSpread', [
+        { x: sd, y: M.spread.aa_bp, mode: 'lines', name: 'AA-',
+          line: { width: 2, color: '#c93a3e' },
+          hovertemplate: '%{y:.1f}bp<extra>AA-</extra>' },
+        { x: sd, y: M.spread.bbb_bp, mode: 'lines', name: 'BBB-', yaxis: 'y2',
+          line: { width: 1.5, color: '#888', dash: 'dot' },
+          hovertemplate: '%{y:.1f}bp<extra>BBB-</extra>' }
+      ], { margin: { t: 10, r: 45, b: 40, l: 45 },
+           yaxis: { title: 'AA- (bp)' },
+           yaxis2: { title: 'BBB- (bp)', overlaying: 'y', side: 'right', showgrid: false },
+           legend: { orientation: 'h', y: -0.3, font: { size: 10 } }, height: 280 },
+         { displayModeBar: false, responsive: true });
+    }
+    if (M.trade) {
+      const td = M.trade.dates.map(fmtD);
+      Plotly.newPlot('mktTrade', [
+        { x: td, y: M.trade.corp_eok, type: 'bar', name: LANG === 'ko' ? '회사채 거래대금' : 'Corporate trading value',
+          marker: { color: '#2563eb' }, opacity: 0.55,
+          hovertemplate: '%{y:,}<extra></extra>' },
+        { x: td, y: M.trade.corp_ma20_eok, mode: 'lines', name: t('ma20'),
+          line: { width: 2, color: '#111' },
+          hovertemplate: '%{y:,}<extra>' + t('ma20') + '</extra>' }
+      ], { margin: { t: 10, r: 10, b: 40, l: 55 },
+           yaxis: { title: t('eok') },
+           legend: { orientation: 'h', y: -0.3, font: { size: 10 } }, height: 280,
+           bargap: 0.1 },
+         { displayModeBar: false, responsive: true });
+    }
+  }
   function renderSections(){
     const host = document.getElementById('sections');
     host.innerHTML = order.map((ind, i) =>
@@ -203,6 +313,7 @@ HTML = """<!DOCTYPE html>
     if (ml) ml.textContent = t('meta')(META.days, META.first, META.last);
     const lb = document.getElementById('langBtn');
     if (lb) lb.textContent = t('lang_btn');
+    renderMarket();
     renderSections();
   }
   document.getElementById('langBtn').addEventListener('click', () => {
