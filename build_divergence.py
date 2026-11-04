@@ -220,7 +220,7 @@ HTML = """<!DOCTYPE html>
       q: { div_credit_worse: "신용 악화형", div_credit_better: "신용 개선형", agree_good: "동반 개선", agree_bad: "동반 악화" },
       x: "주가 60일 수익률 (%)", y: "스프레드 60일 변화 (bp)", stock_idx: "주가 (시작=100)", sprd_l: "스프레드 (bp)",
       meta: (a, b, w, n) => `스프레드 ${a} · 주가 ${b} · ${w}거래일 변화 기준 · 상장 맵핑 발행자 ${n}곳`,
-      nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+      nav_logo: "회사채 신용 스프레드 모니터", nav_menu: "메뉴 ▾", nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
       nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
       nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN" },
@@ -234,7 +234,7 @@ HTML = """<!DOCTYPE html>
       q: { div_credit_worse: "Credit worsening", div_credit_better: "Credit improving", agree_good: "Both improving", agree_bad: "Both worsening" },
       x: "Stock 60d return (%)", y: "Spread 60d change (bp)", stock_idx: "Stock (start=100)", sprd_l: "Spread (bp)",
       meta: (a, b, w, n) => `Spreads ${a} · Stocks ${b} · ${w}-trading-day changes · ${n} issuers mapped to listed stocks`,
-      nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+      nav_logo: "Corporate Bond Credit Monitor", nav_menu: "Menu ▾", nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
       nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
       nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한" }
