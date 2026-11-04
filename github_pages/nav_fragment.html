@@ -1,0 +1,28 @@
+<style>
+  .site-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+  .site-nav a { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px;
+                background: #fff; color: #1a1a1a; text-decoration: none; font-size: 13.5px; }
+  .site-nav a.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+</style>
+<nav class="site-nav">
+  <a href="/bond-credit-monitor/monitor/" data-i18n="nav_monitor">모니터</a>
+  <a href="/bond-credit-monitor/trends/" data-i18n="nav_trends">산업별 전체 추이</a>
+  <a href="/bond-credit-monitor/concepts/" data-i18n="nav_concepts">신용평가 개념 가이드</a>
+  <a href="/bond-credit-monitor/structure/" data-i18n="nav_structure">차환 리스크·등급 내 분산</a>
+  <a href="/bond-credit-monitor/divergence/" data-i18n="nav_divergence">신용-주식 괴리</a>
+  <a href="/bond-credit-monitor/monthly/" data-i18n="nav_monthly">사건별 시장 반응</a>
+  <a href="/bond-credit-monitor/intraday/" data-i18n="nav_intraday">장중 체결 흐름</a>
+</nav>
+<script>
+(function () {
+  var here = window.location.pathname.replace(/\/$/, '') || '/';
+  document.querySelectorAll('.site-nav a').forEach(function (a) {
+    var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
+    if (p === here) a.classList.add('on');
+  });
+  if (here === '/bond-credit-monitor') {
+    var main_link = document.querySelector('.site-nav a[data-i18n="nav_monthly"]');
+    if (main_link) main_link.classList.add('on');
+  }
+})();
+</script>

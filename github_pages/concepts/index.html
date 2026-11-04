@@ -60,7 +60,7 @@
   .site-nav a.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
 </style>
 <nav class="site-nav">
-  <a href="/bond-credit-monitor/" data-i18n="nav_monitor">모니터</a>
+  <a href="/bond-credit-monitor/monitor/" data-i18n="nav_monitor">모니터</a>
   <a href="/bond-credit-monitor/trends/" data-i18n="nav_trends">산업별 전체 추이</a>
   <a href="/bond-credit-monitor/concepts/" data-i18n="nav_concepts">신용평가 개념 가이드</a>
   <a href="/bond-credit-monitor/structure/" data-i18n="nav_structure">차환 리스크·등급 내 분산</a>
@@ -75,6 +75,10 @@
     var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
     if (p === here) a.classList.add('on');
   });
+  if (here === '/bond-credit-monitor') {
+    var main_link = document.querySelector('.site-nav a[data-i18n="nav_monthly"]');
+    if (main_link) main_link.classList.add('on');
+  }
 })();
 </script>
 

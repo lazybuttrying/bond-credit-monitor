@@ -576,7 +576,13 @@ def main():
     html = html.replace("<!--NAV-->", nav)
     with open(os.path.join(MONTHLY_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
+    # The events page is also the site main page: the root index is the
+    # same document, served as-is (no event pre-selected on load).
+    root_path = os.path.join(DATA, "github_pages", "index.html")
+    with open(root_path, "w", encoding="utf-8") as f:
+        f.write(html)
     print("wrote index.html", len(html.encode("utf-8")), "bytes")
+    print("wrote root index.html (events page copy)", len(html.encode("utf-8")), "bytes")
 
 
 if __name__ == "__main__":

@@ -834,6 +834,8 @@ def build_github(out_dir):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--github":
-        build_github(os.path.join(DATA, "github_pages"))
+        # The site root is a redirect to the events page (the main page);
+        # the dashboard itself lives under monitor/.
+        build_github(os.path.join(DATA, "github_pages", "monitor"))
     else:
         main()
