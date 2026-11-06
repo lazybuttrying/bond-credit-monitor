@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event card template</title>
+<script src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         margin: 0; padding: 16px; background: #f7f8fa; color: #1a1a1a; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  a { color: #2563eb; text-decoration: none; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  .events { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .events button { padding: 8px 14px; border: 1px solid #ddd; border-radius: 20px;
+                   background: #fff; cursor: pointer; font-size: 14px; }
+  .events button.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .hero { text-align: center; padding: 34px 0 8px; }
+  .hero h1 { font-size: 26px; margin: 0 0 6px; }
+  .hero .sub { font-size: 14px; color: #666; margin: 0 0 22px; line-height: 1.6; }
+  .search-wrap { position: relative; max-width: 560px; margin: 0 auto; text-align: left; }
+  .search-box { display: flex; align-items: center; gap: 8px; background: #fff;
+                border: 1px solid #dfe1e5; border-radius: 24px; padding: 0 18px;
+                box-shadow: 0 1px 6px rgba(32,33,36,.12); }
+  .search-box:focus-within { box-shadow: 0 2px 10px rgba(32,33,36,.18); }
+  .search-box .mag { color: #888; font-size: 15px; }
+  .search-box input { flex: 1; border: none; outline: none; font-size: 16px;
+                      padding: 13px 0; background: transparent; color: #1a1a1a; min-width: 0; }
+  .search-drop { position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+                 background: #fff; border: 1px solid #e5e5e5; border-radius: 14px;
+                 box-shadow: 0 4px 16px rgba(32,33,36,.16); overflow: hidden;
+                 display: none; z-index: 20; }
+  .search-drop button { display: flex; justify-content: space-between; gap: 10px;
+                        width: 100%; padding: 11px 18px; border: none; background: #fff;
+                        font-size: 14.5px; cursor: pointer; text-align: left; color: #1a1a1a; }
+  .search-drop button:hover { background: #f7f8fa; }
+  .search-drop button .d { color: #888; font-size: 12.5px; white-space: nowrap; }
+  .search-drop .none { padding: 11px 18px; font-size: 14px; color: #888; }
+  .past-label { font-size: 13px; color: #888; margin: 26px 0 10px; text-align: center; }
+  .events.center { justify-content: center; }
+  .topic { font-size: 14.5px; line-height: 1.9; margin: 0 0 4px; padding-left: 20px; }
+  .stats { font-size: 13px; color: #666; margin: 12px 0 4px; }
+  .verdict { font-size: 15px; font-weight: 700; margin: 12px 0 4px; line-height: 1.6; }
+  .chart-title { font-size: 15px; margin: 18px 0 4px; }
+  .chart-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 8px; }
+  .src-title { font-size: 15px; margin: 18px 0 8px; }
+  .sources { font-size: 14px; line-height: 2.0; margin: 0; padding-left: 20px; }
+  .sources .meta { color: #888; font-size: 12.5px; }
+  .note { font-size: 12px; color: #888; margin-top: 12px; line-height: 1.6; }
+  .foot { text-align: center; color: #888; font-size: 13px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Language toggle: static strings carry data-i18n keys, per-event
+       strings live in localized fields on each event object. -->
+  <div style="display:flex;justify-content:flex-end">
+    <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
+  </div>
+
+  <!-- Hero: the first screen is search plus event buttons only.
+       The search box accepts a pasted article link and matches it
+       against titles, topics, and cited source URLs. -->
+  <div class="hero">
+    <h1 data-i18n="page_title">사건 미리보기</h1>
+    <p class="sub" data-i18n="page_sub">사건을 검색하거나 아래에서 고르면, 판정과 근거 차트를 한 카드로 보여줍니다.</p>
+    <div class="search-wrap">
+      <div class="search-box">
+        <span class="mag">⌕</span>
+        <input type="text" id="eventSearch" placeholder="관련 뉴스 기사 링크" autocomplete="off">
+      </div>
+      <div class="search-drop" id="searchDrop"></div>
+    </div>
+    <div class="past-label" data-i18n="past_label">이전 사건</div>
+    <div class="events center" id="eventBtns"></div>
+  </div>
+
+  <!-- Event card, hidden until an event is selected.
+       Reading order is the point of this template:
+       title, topic bullets, one-line verdict, one-line stats,
+       chart with its own title and methodology description,
+       optional second chart, caveat note, cited sources. -->
+  <div class="card" id="eventCard" style="display:none">
+    <h2 id="eventTitle"></h2>
+    <ul class="topic" id="topicList"></ul>
+    <div class="verdict" id="verdictLine"></div>
+    <div class="stats" id="statsLine"></div>
+    <h3 class="chart-title" id="chartTitle"></h3>
+    <div class="chart-desc" id="chartDesc"></div>
+    <div id="chart"></div>
+    <div id="extraWrap" style="display:none">
+      <h3 class="chart-title" id="extraTitle"></h3>
+      <div class="chart-desc" id="extraDesc"></div>
+      <div id="chart2"></div>
+    </div>
+    <div class="note" id="noteLine" style="display:none"></div>
+    <h3 class="src-title" data-i18n="sources_title">인용 기사</h3>
+    <ul class="sources" id="srcList"></ul>
+  </div>
+
+  <!-- Page note: state the role split out loud. Summaries are
+       background, charts are the data claim, and each rests on a
+       different source. -->
+  <div class="note" data-i18n="page_note">요약은 인용 기사 기준이며 배경 설명이다. 차트는 자체 수집 데이터 기준이다.</div>
+  <div class="foot">Event card template</div>
+</div>
+
+<script>
+// Fill this array with real events. Every user-facing string comes in
+// a ko and en pair. chart.traces is a Plotly trace list, and a series
+// with no observations should set chart.emptyText instead of traces so
+// the absence itself is stated, never drawn as a silent gap.
+window.EVENTS_DATA = [
+  {
+    id: "sample-a",
+    date: "2026-01-15",
+    title: { ko: "예시 사건 A", en: "Sample event A" },
+    topics: {
+      ko: ["무슨 일이 있었는지 한 줄", "왜 중요한지 한 줄"],
+      en: ["One line on what happened", "One line on why it matters"]
+    },
+    verdict: {
+      ko: "판정 한 줄, 차트보다 먼저 결론을 말한다.",
+      en: "One-line verdict, stated before the chart."
+    },
+    stats: {
+      ko: "핵심 수치 한 줄, 건수와 기간과 크기를 넣는다.",
+      en: "One line of key numbers, counts, window, magnitude."
+    },
+    chart: {
+      title: { ko: "차트 제목, 무엇을 재는 차트인지까지 쓴다", en: "Chart title, stating what is measured" },
+      desc: {
+        ko: "기준과 정의를 문장으로 쓴다. 선이 끊긴 구간이 뭘 뜻하는지도 여기 쓴다.",
+        en: "State the benchmark and definition in sentences, including what a gap in the line means."
+      },
+      traces: [
+        { x: ["2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16"],
+          y: [10, 12, 11, 25, 18], mode: "lines+markers", name: "sample" }
+      ]
+    },
+    extra: null,
+    note: { ko: "이 사건에만 걸리는 주의 사항이 있으면 여기에 쓴다.", en: "Event-specific caveat goes here." },
+    sources: [
+      { url: "https://example.com/article-a",
+        topic: { ko: "기사 토픽 문장 자체가 링크가 된다", en: "The topic sentence itself is the link" },
+        outlet: { ko: "매체명", en: "Outlet" }, date: "2026-01-15" }
+    ]
+  },
+  {
+    id: "sample-b",
+    date: "2026-02-02",
+    title: { ko: "예시 사건 B, 데이터 없음", en: "Sample event B, no data" },
+    topics: { ko: ["데이터가 비는 경우의 표시 예시"], en: ["Example of the empty-data case"] },
+    verdict: { ko: "해당 기간에 관측이 없다, 그 사실 자체가 판정이다.", en: "No observations in the window, and that is the verdict." },
+    stats: { ko: "관측 0건", en: "0 observations" },
+    chart: {
+      title: { ko: "차트 제목", en: "Chart title" },
+      desc: { ko: "차트 설명", en: "Chart description" },
+      traces: [],
+      emptyText: { ko: "해당 기간에 데이터가 없어 차트를 그리지 않았다.", en: "No data in this window, so no chart is drawn." }
+    },
+    extra: null,
+    note: null,
+    sources: [
+      { url: "https://example.com/article-b",
+        topic: { ko: "기사 토픽 문장", en: "Article topic sentence" },
+        outlet: { ko: "매체명", en: "Outlet" }, date: "2026-02-02" }
+    ]
+  }
+];
+</script>
+<script>
+const I18N = {
+  ko: {
+    doc_title: "사건 미리보기 템플릿",
+    page_title: "사건 미리보기",
+    page_sub: "사건을 검색하거나 아래에서 고르면, 판정과 근거 차트를 한 카드로 보여줍니다.",
+    past_label: "이전 사건",
+    sources_title: "인용 기사",
+    page_note: "요약은 인용 기사 기준이며 배경 설명이다. 차트는 자체 수집 데이터 기준이다.",
+    search_ph: "관련 뉴스 기사 링크",
+    no_match: "맞는 사건이 없습니다",
+    lang_btn: "EN"
+  },
+  en: {
+    doc_title: "Event preview template",
+    page_title: "Event preview",
+    page_sub: "Search or pick an event to see its verdict and evidence chart on one card.",
+    past_label: "Past events",
+    sources_title: "Cited articles",
+    page_note: "Summaries rest on the cited articles and are background. Charts rest on self-collected data.",
+    search_ph: "Paste a link to a related news article",
+    no_match: "No matching event",
+    lang_btn: "한국어"
+  }
+};
+let LANG = "ko";
+let currentId = null;
+
+function loc(field) {
+  if (field == null) return "";
+  if (typeof field === "string") return field;
+  return field[LANG] || field.ko || "";
+}
+
+function haystack(ev) {
+  const parts = [ev.id, ev.date];
+  for (const f of [ev.title, ev.verdict, ev.stats]) {
+    if (f) parts.push(f.ko || "", f.en || "");
+  }
+  for (const t of (ev.topics && ev.topics.ko) || []) parts.push(t);
+  for (const t of (ev.topics && ev.topics.en) || []) parts.push(t);
+  for (const s of ev.sources || []) {
+    parts.push(s.url || "");
+    if (s.topic) parts.push(s.topic.ko || "", s.topic.en || "");
+    if (s.outlet) parts.push(s.outlet.ko || "", s.outlet.en || "");
+  }
+  return parts.join(" ").toLowerCase();
+}
+
+function renderButtons(activeId) {
+  const box = document.getElementById("eventBtns");
+  box.innerHTML = "";
+  for (const ev of window.EVENTS_DATA) {
+    const b = document.createElement("button");
+    b.textContent = loc(ev.title);
+    if (ev.id === activeId) b.className = "on";
+    b.addEventListener("click", () => selectEvent(ev.id, true));
+    box.appendChild(b);
+  }
+}
+
+function drawChart(divId, chart) {
+  const div = document.getElementById(divId);
+  div.innerHTML = "";
+  if (!chart) return;
+  if (!chart.traces || chart.traces.length === 0) {
+    const p = document.createElement("div");
+    p.className = "note";
+    p.textContent = loc(chart.emptyText) || "";
+    div.appendChild(p);
+    return;
+  }
+  if (typeof Plotly === "undefined") {
+    div.innerHTML = "<div class='note'>Plotly failed to load.</div>";
+    return;
+  }
+  try {
+    Plotly.newPlot(div, chart.traces, { margin: { t: 16, r: 12, b: 36, l: 44 } },
+                   { displayModeBar: false, responsive: true });
+  } catch (e) {
+    div.innerHTML = "<div class='note'>Chart failed to render.</div>";
+  }
+}
+
+function selectEvent(id, scroll) {
+  const ev = window.EVENTS_DATA.find(e => e.id === id);
+  if (!ev) return;
+  currentId = id;
+  renderButtons(id);
+  document.getElementById("eventTitle").textContent = loc(ev.title);
+  document.getElementById("topicList").innerHTML =
+    ((ev.topics && ev.topics[LANG]) || []).map(t => "<li>" + t + "</li>").join("");
+  document.getElementById("verdictLine").textContent = loc(ev.verdict);
+  document.getElementById("statsLine").textContent = loc(ev.stats);
+  document.getElementById("chartTitle").textContent = loc(ev.chart.title);
+  document.getElementById("chartDesc").textContent = loc(ev.chart.desc);
+  drawChart("chart", ev.chart);
+  const extraWrap = document.getElementById("extraWrap");
+  if (ev.extra) {
+    extraWrap.style.display = "";
+    document.getElementById("extraTitle").textContent = loc(ev.extra.title);
+    document.getElementById("extraDesc").textContent = loc(ev.extra.desc);
+    drawChart("chart2", ev.extra);
+  } else {
+    extraWrap.style.display = "none";
+  }
+  const note = document.getElementById("noteLine");
+  if (ev.note) {
+    note.style.display = "";
+    note.textContent = loc(ev.note);
+  } else {
+    note.style.display = "none";
+  }
+  document.getElementById("srcList").innerHTML =
+    (ev.sources || []).map(s =>
+      "<li><a href=\"" + s.url + "\" target=\"_blank\" rel=\"noopener\">" +
+      loc(s.topic) + "</a> <span class=\"meta\">" + loc(s.outlet) + " " +
+      (s.date || "") + "</span></li>").join("");
+  const card = document.getElementById("eventCard");
+  card.style.display = "";
+  if (scroll) card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function applyLang() {
+  const dict = I18N[LANG];
+  document.title = dict.doc_title;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (dict[key]) el.textContent = dict[key];
+  });
+  document.getElementById("eventSearch").placeholder = dict.search_ph;
+  document.getElementById("langBtn").textContent = dict.lang_btn;
+  renderButtons(currentId);
+  if (currentId) selectEvent(currentId, false);
+}
+
+document.getElementById("langBtn").addEventListener("click", () => {
+  LANG = LANG === "ko" ? "en" : "ko";
+  applyLang();
+});
+
+const searchInput = document.getElementById("eventSearch");
+const drop = document.getElementById("searchDrop");
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) { drop.style.display = "none"; drop.innerHTML = ""; return; }
+  const hits = window.EVENTS_DATA.filter(ev => haystack(ev).includes(q));
+  drop.innerHTML = "";
+  if (hits.length === 0) {
+    const d = document.createElement("div");
+    d.className = "none";
+    d.textContent = I18N[LANG].no_match;
+    drop.appendChild(d);
+  } else {
+    for (const ev of hits) {
+      const b = document.createElement("button");
+      const left = document.createElement("span");
+      left.textContent = loc(ev.title);
+      const right = document.createElement("span");
+      right.className = "d";
+      right.textContent = ev.date || "";
+      b.appendChild(left);
+      b.appendChild(right);
+      b.addEventListener("click", () => {
+        drop.style.display = "none";
+        selectEvent(ev.id, true);
+      });
+      drop.appendChild(b);
+    }
+  }
+  drop.style.display = "";
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest(".search-wrap")) drop.style.display = "none";
+});
+
+renderButtons(null);
+</script>
+</body>
+</html>
