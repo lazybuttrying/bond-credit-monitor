@@ -47,6 +47,7 @@
           line-height: 1.6; text-align: center; }
   .card.alarm { border: 2px solid #dc2626; background: #fef2f2; }
   .card.alarm h2 { color: #b91c1c; }
+  .warn.alert { background: #fef2f2; border-color: #f87171; color: #991b1b; }
   .ana-status { max-width: 560px; margin: 14px auto 0; display: flex;
                 align-items: center; justify-content: center; gap: 10px;
                 background: #eff6ff; border: 1px solid #93c5fd;
@@ -85,7 +86,7 @@
       </div>
       <div class="search-drop" id="searchDrop"></div>
     </div>
-    <div class="warn" data-i18n="search_warn">주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.</div>
+    <div class="warn" id="warnBox" data-i18n="search_warn">주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.</div>
     <div class="ana-status" id="anaStatus" style="display:none"><span class="spin"></span><span id="anaStatusText"></span></div>
     <div class="past-label" data-i18n="past_label">이전 사건</div>
     <div class="events center" id="eventBtns"></div>
@@ -225,9 +226,11 @@ function pickEvent(id) {
   const ev = EVENTS.find(e => e.id === id);
   if (ev) searchInput.value = loc(ev, 'title');
   searchDrop.style.display = 'none';
+  if (typeof resetWarn === 'function') resetWarn();
   render(id);
 }
 function refreshSearch() {
+  if (typeof resetWarn === 'function') resetWarn();
   const q = searchInput.value;
   const matches = matchEvents(q);
   const matchIds = new Set(matches.map(e => e.id));
@@ -447,7 +450,24 @@ function intraXAxis() {
 function renderIntraday(ev) {
   const wrap = document.getElementById('intraWrap');
   const iv = ev.intraday;
-  if (!iv) { wrap.style.display = 'none'; return; }
+  if (!iv) {
+    if (ev.ana && typeof resolveIntra === 'function') {
+      wrap.style.display = 'block';
+      document.getElementById('intraTitle').textContent =
+        t('intra_title') + ': ' + ev.ana.date.slice(0, 4) + '-' +
+        ev.ana.date.slice(4, 6) + '-' + ev.ana.date.slice(6, 8);
+      document.getElementById('intraDesc').textContent =
+        (typeof ANA_STR !== 'undefined')
+          ? ANA_STR[LANG].intra_loading : 'Loading';
+      document.getElementById('intraStats').textContent = '';
+      document.getElementById('intraCum').innerHTML = '';
+      document.getElementById('intraHour').innerHTML = '';
+      resolveIntra(ev);
+    } else {
+      wrap.style.display = 'none';
+    }
+    return;
+  }
   wrap.style.display = 'block';
   const focusName = loc(iv, 'focus_label');
   const peerName = loc(iv, 'peer_label');
@@ -545,6 +565,7 @@ function applyI18n() {
     if (typeof v === 'string') el.textContent = v;
   });
   document.title = t('doc_title');
+  if (typeof refreshWarn === 'function') refreshWarn();
   searchInput.placeholder = t('search_ph');
   document.getElementById('langBtn').textContent = t('lang_btn');
   buildButtons();
@@ -571,6 +592,7 @@ const ANA_STR = {
     btn: "이 링크 분석하기",
     reading: "분석 중입니다. 기사를 읽는 중입니다",
     analyzing: "분석 중입니다. 날짜와 발행자를 찾고 스프레드를 계산하는 중입니다",
+    related_stage: "분석 중입니다. 관련 뉴스를 찾는 중입니다",
     done: "분석이 끝났습니다",
     fail: "기사를 읽지 못했습니다. 사이트가 읽기를 막았거나 연결이 끊겼습니다.",
     read_fail_title: "기사 읽기 실패",
@@ -579,6 +601,9 @@ const ANA_STR = {
     stage_empty: "본문 없음 (빈 응답)",
     stage_blocked: "차단됨 (사이트가 읽기를 막음)",
     stage_network: "네트워크 오류 또는 시간 초과",
+    intra_loading: "장중 체결 흐름을 불러오는 중입니다",
+    intra_next_day: "기사 날짜가 휴장일이라 다음 거래일 기준입니다",
+    intra_prev_day: "기사 날짜 이후 거래일이 없어 직전 거래일 기준입니다",
     no_date: "기사에서 날짜를 찾지 못해 분석할 수 없습니다.",
     offshore: "해외에서 발행한 채권이라 국내 체결 데이터에 흔적이 남지 않습니다. 이 모니터는 국내 회사채 체결만 다룹니다.",
     not_corp: "회사채 사건으로 읽히지 않습니다. 기사에서 국내 회사채 발행자를 찾지 못했고 회사채 관련 표현도 없었습니다. 이 페이지는 회사채 사건만 다룹니다.",
@@ -594,6 +619,7 @@ const ANA_STR = {
     btn: "Analyze this link",
     reading: "Analyzing. Reading the article",
     analyzing: "Analyzing. Extracting the date and issuer and computing spreads",
+    related_stage: "Analyzing. Looking for related coverage",
     done: "Analysis complete",
     fail: "Could not read the article. The site may block readers, or the connection failed.",
     read_fail_title: "Article read failure",
@@ -602,6 +628,9 @@ const ANA_STR = {
     stage_empty: "empty body (blank response)",
     stage_blocked: "blocked (the site refused the reader)",
     stage_network: "network error or timeout",
+    intra_loading: "Loading the intraday trade flow",
+    intra_next_day: "the article date was a non-trading day, so the next trading day is used",
+    intra_prev_day: "no trading day follows the article date, so the previous trading day is used",
     no_date: "No date could be found in the article, so it cannot be analyzed.",
     offshore: "This bond was issued offshore, so it leaves no trace in domestic trade data. This monitor covers domestic corporate bond trades only.",
     not_corp: "This does not read as a corporate bond event. No domestic corporate bond issuer was found in the article, and there was no corporate bond wording either. This page covers corporate bond events only.",
@@ -677,13 +706,32 @@ function parseArticle(text, url) {
   }
   return { title: title, dateStr: dateStr, body: body };
 }
+const BOND_CTX = /(회사채|공모채|수요예측|채권|사채|발행|스프레드|민평|등급)/;
+function nameAppears(name, text, isBody) {
+  if (/[A-Za-z]/.test(name)) {
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('(?<![A-Za-z0-9])' + esc + '(?![A-Za-z0-9])').test(text);
+  }
+  if (isBody && name.length <= 2) {
+    let i = text.indexOf(name);
+    while (i >= 0) {
+      const around = text.slice(Math.max(0, i - 60), i + name.length + 60);
+      if (BOND_CTX.test(around)) return true;
+      i = text.indexOf(name, i + 1);
+    }
+    return false;
+  }
+  return text.includes(name);
+}
 function findIssuer(title, body) {
-  const names = Object.keys(ANA.issuers).sort((a, b) => b.length - a.length);
+  const names = Object.keys(ANA.issuers)
+    .filter(nm => nm.length >= 2 && !/^[A-Za-z]{1,3}\d+$/.test(nm))
+    .sort((a, b) => b.length - a.length);
   let hit = null;
-  for (const n of names) if (title.includes(n)) { hit = n; break; }
+  for (const n of names) if (nameAppears(n, title, false)) { hit = n; break; }
   const head = body.slice(0, 3000);
   for (const n of names) {
-    if (!head.includes(n)) continue;
+    if (!nameAppears(n, head, true)) continue;
     if (!hit) return n;
     if (n.length > hit.length && n.startsWith(hit)) return n;
     break;
@@ -728,15 +776,15 @@ function buildAnalyzed(parsed, url, outlet) {
   const dates = ANA.dates;
   const d = parsed.dateStr;
   const head = parsed.title + '\n' + parsed.body.slice(0, 2000);
-  if (!d) return anaNotice(parsed.title, d, anaT('no_date'), ANA_STR.en.no_date, outlet, url);
-  if (d < dates[0]) return anaNotice(parsed.title, d, anaT('out_range'), ANA_STR.en.out_range, outlet, url);
+  if (!d) return { rejected: 'no_date', reasonKo: ANA_STR.ko.no_date, reasonEn: ANA_STR.en.no_date };
+  if (d < dates[0]) return { rejected: 'out_range', reasonKo: ANA_STR.ko.out_range, reasonEn: ANA_STR.en.out_range };
   if (/(달러채|해외\s*공모채|외화채|달러\s*표시|글로벌\s*공모채)/.test(head)) {
-    return anaNotice(parsed.title, d, anaT('offshore'), ANA_STR.en.offshore, outlet, url);
+    return { rejected: 'offshore', reasonKo: ANA_STR.ko.offshore, reasonEn: ANA_STR.en.offshore };
   }
   const issuer = findIssuer(parsed.title, parsed.body);
   const bondish = /(회사채|공모채|채권\s*발행|사채|녹색채권|ESG\s*채권)/.test(head);
   if (!issuer && !bondish) {
-    return anaNotice(parsed.title, d, anaT('not_corp'), ANA_STR.en.not_corp, outlet, url);
+    return { rejected: 'not_corp', reasonKo: ANA_STR.ko.not_corp, reasonEn: ANA_STR.en.not_corp };
   }
   let c = dates.indexOf(d);
   if (c < 0) {
@@ -798,11 +846,140 @@ function buildAnalyzed(parsed, url, outlet) {
     stats: stats, stats_en: statsEn,
     dates: win.map(anaFmt), series: series, markers: markers,
     issuer_name: issuer || '',
+    ana: issuer ? { date: d, issuer } : null,
     note: ANA_STR.ko.note, note_en: ANA_STR.en.note,
     sources: [{ outlet: outlet[0], outlet_en: outlet[1],
                 date: anaFmt(d), date_en: anaFmt(d),
                 topic: parsed.title || url, topic_en: parsed.title || url, url: url }]
   };
+}
+const PEER_LABELS = {
+  bank: ["상업은행채 피어", "Commercial bank peers"],
+  corp: ["일반회사채 피어", "Regular corporate peers"],
+  policy: ["정책금융 피어", "Policy finance peers"],
+  reit: ["리츠 피어", "REIT peers"],
+  construct: ["건설 피어", "Construction peers"],
+  estate: ["부동산 피어", "Real estate peers"],
+  ktb: ["국고채", "KTBs"]
+};
+const INTRA_MONTHS = {};
+function fetchIntraMonth(ym) {
+  if (!INTRA_MONTHS[ym]) {
+    INTRA_MONTHS[ym] = fetch('intraday-data/' + ym + '.json')
+      .then(r => (r.ok ? r.json() : null)).catch(() => null);
+  }
+  return INTRA_MONTHS[ym];
+}
+function flatPairs(flat) {
+  const out = [];
+  for (let i = 0; i + 1 < flat.length; i += 2) out.push([flat[i], flat[i + 1]]);
+  return out;
+}
+function cumFromBins(flat) {
+  let run = 0;
+  return flatPairs(flat).map(([b, a]) => [b, Math.round((run += a) * 100) / 100]);
+}
+function hourlyFromBins(flat) {
+  const m = new Map();
+  for (const [b, a] of flatPairs(flat)) {
+    const h = Math.floor(b / 60);
+    m.set(h, Math.round(((m.get(h) || 0) + a) * 100) / 100);
+  }
+  return m;
+}
+function stepAt(pairs, bin) {
+  let v = 0;
+  for (const [b, c] of pairs) { if (b <= bin) v = c; else break; }
+  return v;
+}
+function buildIv(day, dateStr, issuer) {
+  const focus = day.i[issuer] || null;
+  const anaGrp = ANA && ANA.issuers[issuer] ? ANA.issuers[issuer].grp : null;
+  let bucket = (focus && focus.g) || anaGrp || 'corp';
+  const groupCum = bucket && day.g[bucket] ? flatPairs(day.g[bucket]) : [];
+  const focusCum = focus ? cumFromBins(focus.b) : [];
+  const groupTotal = groupCum.length ? groupCum[groupCum.length - 1][1] : 0;
+  const focusTotal = focus ? focus.a : 0;
+  if (bucket !== 'corp' && groupTotal - focusTotal <= 0 && day.g.corp) {
+    bucket = 'corp';
+  }
+  const gCum = flatPairs(day.g[bucket] || []);
+  const focusInBucket = !!(focus && focus.g === bucket);
+  const bins = [...new Set([...gCum.map(p => p[0]), ...focusCum.map(p => p[0])])].sort((a, b) => a - b);
+  const peerCum = focusInBucket
+    ? bins.map(b => [b, Math.max(0, Math.round((stepAt(gCum, b) - stepAt(focusCum, b)) * 100) / 100)])
+    : gCum;
+  const fHour = focus ? hourlyFromBins(focus.b) : new Map();
+  const gHour = new Map();
+  for (const [b, a] of flatPairs(day.g[bucket] ? binsToAmt(day, bucket) : [])) {
+    const h = Math.floor(b / 60);
+    gHour.set(h, Math.round(((gHour.get(h) || 0) + a) * 100) / 100);
+  }
+  const hours = [...new Set([...fHour.keys(), ...gHour.keys()])].sort((a, b) => a - b);
+  const peerN = Object.entries(day.i)
+    .filter(([nm, v]) => nm !== issuer && v.g === bucket)
+    .reduce((s, [, v]) => s + v.n, 0);
+  const topPeers = Object.entries(day.i)
+    .filter(([nm, v]) => nm !== issuer && v.g === bucket)
+    .sort((a, b) => b[1].n - a[1].n).slice(0, 3)
+    .map(([nm, v]) => ({ name: nm, n: v.n }));
+  const labels = PEER_LABELS[bucket] || PEER_LABELS.corp;
+  return {
+    date: anaFmt(dateStr),
+    focus_label: issuer, focus_label_en: issuer,
+    peer_label: labels[0], peer_label_en: labels[1],
+    status: focus && focus.n ? 'ok' : 'no_focus_trades',
+    focus_n: focus ? focus.n : 0, focus_amt: focusTotal,
+    peer_n: peerN,
+    peer_amt: Math.max(0, Math.round(((gCum.length ? gCum[gCum.length - 1][1] : 0) - (focusInBucket ? focusTotal : 0)) * 10) / 10),
+    market_n: day.mn,
+    top_peers: topPeers,
+    cum_focus: focusCum, cum_peer: peerCum,
+    hourly: {
+      h: hours,
+      focus: hours.map(h => fHour.get(h) || 0),
+      peer: hours.map(h => Math.max(0, Math.round(((gHour.get(h) || 0) - (focusInBucket ? (fHour.get(h) || 0) : 0)) * 100) / 100))
+    },
+    scatter: null
+  };
+}
+function binsToAmt(day, bucket) {
+  // group per-bin amounts derived from the cumulative curve
+  const cum = flatPairs(day.g[bucket] || []);
+  const out = [];
+  let prev = 0;
+  for (const [b, c] of cum) { out.push(b, Math.round((c - prev) * 100) / 100); prev = c; }
+  return out;
+}
+async function resolveIntra(ev) {
+  const dateStr = ev.ana.date, issuer = ev.ana.issuer;
+  const data = await fetchIntraMonth(dateStr.slice(0, 6));
+  let day = data && data[dateStr], used = dateStr, reason = null;
+  if (!day && data) {
+    const days = Object.keys(data).sort();
+    const pick = days.find(d => d > dateStr) ||
+                 [...days].reverse().find(d => d < dateStr);
+    if (pick) {
+      day = data[pick]; used = pick;
+      reason = pick > dateStr
+        ? [ANA_STR.ko.intra_next_day, ANA_STR.en.intra_next_day]
+        : [ANA_STR.ko.intra_prev_day, ANA_STR.en.intra_prev_day];
+    }
+  }
+  if (!day) {
+    const labels = PEER_LABELS.corp;
+    ev.intraday = {
+      date: anaFmt(dateStr), focus_label: issuer, focus_label_en: issuer,
+      peer_label: labels[0], peer_label_en: labels[1], status: 'no_data'
+    };
+  } else {
+    ev.intraday = buildIv(day, used, issuer);
+    if (reason) {
+      ev.intraday.date_reason = reason[0];
+      ev.intraday.date_reason_en = reason[1];
+    }
+  }
+  if (currentId === ev.id) renderIntraday(ev);
 }
 function readFailureStage(ok, statusCode, text) {
   if (!ok) return 'stage_http';
@@ -825,6 +1002,28 @@ function buildReadFail(url, stageKey, outlet) {
   ev.alarm = true;
   return ev;
 }
+let WARN_ALERT = null;
+function showWarnAlert(reasonKo, reasonEn) {
+  WARN_ALERT = { ko: reasonKo, en: reasonEn };
+  refreshWarn();
+}
+function refreshWarn() {
+  const box = document.getElementById('warnBox');
+  if (!box) return;
+  if (WARN_ALERT) {
+    box.classList.add('alert');
+    box.textContent = (LANG === 'ko' ? '경고: ' : 'Warning: ') +
+                      (LANG === 'ko' ? WARN_ALERT.ko : WARN_ALERT.en);
+  } else {
+    box.classList.remove('alert');
+    box.textContent = t('search_warn');
+  }
+}
+function resetWarn() {
+  if (!WARN_ALERT) return;
+  WARN_ALERT = null;
+  refreshWarn();
+}
 function setAnaStatus(text) {
   const bar = document.getElementById('anaStatus');
   if (!bar) return;
@@ -834,6 +1033,93 @@ function setAnaStatus(text) {
   } else {
     bar.style.display = 'none';
   }
+}
+function parseNaverNews(text) {
+  const items = [];
+  const re = /\[([^\n]{8,220}?) ?새 창 열림\]\((https?:\/\/[^)\s]+)\)/g;
+  let m;
+  const links = [];
+  while ((m = re.exec(text)) !== null) {
+    links.push({ text: m[1].replace(/<[^>]+>/g, '').trim(), url: m[2], idx: m.index });
+  }
+  for (let i = 0; i < links.length; i++) {
+    const L = links[i];
+    const next = links[i + 1];
+    if (!next || next.url !== L.url || next.text.length <= L.text.length) continue;
+    if (L.url.includes('search.naver.com') || L.url.includes('keep.naver.com')) continue;
+    const before = text.slice(Math.max(0, L.idx - 900), L.idx);
+    const dm = [...before.matchAll(/(\d{4})\.(\d{2})\.(\d{2})\./g)].pop();
+    if (!dm) continue;
+    const om = [...before.matchAll(/Image \d+: ([^\]]+?)의 프로필 이미지/g)].pop();
+    let outlet = om ? om[1] : '';
+    let title = L.text;
+    const pref = title.match(/^\[([^\]]{2,12})\]\s*/);
+    if (pref) { if (!outlet) outlet = pref[1]; title = title.slice(pref[0].length); }
+    if (!outlet) {
+      try { outlet = new URL(L.url).hostname.replace(/^www\./, ''); } catch (e) { outlet = ''; }
+    }
+    if (title.length > 60 || title.includes('■')) continue;
+    items.push({ title, url: L.url,
+                 dateLabel: dm[1] + '-' + dm[2] + '-' + dm[3], outlet,
+                 summary: next.text.replace(/\s+/g, ' ').trim() });
+  }
+  return items;
+}
+async function enrichRelated(ev, parsed, origUrl) {
+  try {
+    const issuer = ev.issuer_name || '';
+    const kw = parsed.title.includes('수요예측') ? '수요예측' : '회사채';
+    const query = issuer ? issuer + ' ' + kw : parsed.title.slice(0, 40);
+    const shift = (ds, days) => {
+      const dt = new Date(Date.UTC(+ds.slice(0, 4), +ds.slice(4, 6) - 1, +ds.slice(6, 8) + days));
+      return String(dt.getUTCFullYear()) +
+             String(dt.getUTCMonth() + 1).padStart(2, '0') +
+             String(dt.getUTCDate()).padStart(2, '0');
+    };
+    const nso = 'so:dd,p:from' + shift(parsed.dateStr, -3) + 'to' + shift(parsed.dateStr, 7);
+    const surl = 'https://search.naver.com/search.naver?where=news&query=' +
+      encodeURIComponent(query) + '&sort=0&nso=' + encodeURIComponent(nso);
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 15000);
+    const res = await fetch('https://r.jina.ai/' + surl, { signal: ctl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return;
+    const items = parseNaverNews(await res.text());
+    const seenUrl = new Set([origUrl]);
+    const seenTitle = new Set();
+    const norm = s => s.replace(/[\s\[\]'"'…·,]/g, '');
+    const mainNorm = norm(parsed.title);
+    const subjectTok = (parsed.title.split(/[,\s]/)[0] || '');
+    const subject = issuer || (subjectTok.length >= 3 ? subjectTok : '');
+    const scored = [];
+    for (const it of items) {
+      if (seenUrl.has(it.url)) continue;
+      const nt = norm(it.title);
+      if (seenTitle.has(nt) || nt === mainNorm) continue;
+      const hasSubject = subject && it.title.includes(subject);
+      if (!hasSubject && !BOND_CTX.test(it.title)) continue;
+      seenUrl.add(it.url);
+      seenTitle.add(nt);
+      const ddiff = Math.abs(
+        (Date.parse(it.dateLabel) - Date.parse(anaFmt(parsed.dateStr))) / 86400000);
+      scored.push({ it, score: (hasSubject ? 0 : 1), ddiff });
+    }
+    scored.sort((a, b) => a.score - b.score || a.ddiff - b.ddiff);
+    const picked = scored.slice(0, 4).map(s => s.it);
+    for (const it of picked) {
+      ev.sources.push({ outlet: it.outlet, outlet_en: it.outlet,
+                        date: it.dateLabel, date_en: it.dateLabel,
+                        topic: it.title, topic_en: it.title, url: it.url });
+    }
+    const extraTopics = picked
+      .filter(it => it.outlet !== ev.sources[0].outlet && it.summary && /\d/.test(it.summary))
+      .slice(0, 2)
+      .map(it => it.summary.length > 120 ? it.summary.slice(0, 120) + '…' : it.summary);
+    if (extraTopics.length) {
+      ev.topic = [...ev.topic, ...extraTopics];
+      ev.topic_en = [...ev.topic_en, ...extraTopics];
+    }
+  } catch (e) { }
 }
 async function analyzeLink(rawUrl) {
   if (!ANA || window.__anaRunning) return;
@@ -845,6 +1131,7 @@ async function analyzeLink(rawUrl) {
   status.textContent = anaT('reading');
   searchDrop.replaceChildren(status);
   searchDrop.style.display = 'block';
+  resetWarn();
   setAnaStatus(anaT('reading'));
   let host = '';
   try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { }
@@ -876,6 +1163,15 @@ async function analyzeLink(rawUrl) {
   setAnaStatus(anaT('analyzing'));
   const parsed = parseArticle(text, url);
   const ev = buildAnalyzed(parsed, url, outlet);
+  if (ev.rejected) {
+    searchDrop.style.display = 'none';
+    setAnaStatus(null);
+    window.__anaRunning = false;
+    showWarnAlert(ev.reasonKo, ev.reasonEn);
+    return;
+  }
+  setAnaStatus(anaT('related_stage'));
+  await enrichRelated(ev, parsed, url);
   const old = EVENTS.findIndex(e => e.id === 'analyzed-link');
   if (old >= 0) EVENTS.splice(old, 1);
   EVENTS.push(ev);

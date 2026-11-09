@@ -358,7 +358,7 @@ def compute_analysis(df, series):
               for k in ("market", "ktb", "bank", "corp")}
     by_issuer = {}
     for issuer, g in df.groupby("issuer"):
-        if issuer.startswith("국고"):
+        if issuer.startswith("국고") or len(issuer) < 2:
             continue
         vals = {d: round(float(v), 1)
                 for d, v in zip(g["date"], g["spread_sm"])}
@@ -495,6 +495,7 @@ def main():
         print("loaded cached analysis payload:", len(analysis["issuers"]),
               "issuers")
     dates = sorted(series.keys())
+    build_intraday_months(dates)
     idx = {d: i for i, d in enumerate(dates)}
 
     def window_for(ev):
@@ -639,6 +640,82 @@ def main():
         f.write(html)
     print("wrote root index.html", len(html.encode("utf-8")), "bytes")
 
+
+# ---------------------------------------------------------------------------
+# On-demand intraday data for analyzed links: one JSON per month, served
+# under github_pages/intraday-data/. The browser builds the same payload
+# shape as intraday_payload() from these aggregates, so any (date, issuer)
+# pair inside the trade coverage gets an intraday section without the
+# standalone fixed-event page. Amounts are 억원, bins are 10-minute starts
+# in minutes from midnight, matching intraday_payload's bin_cum output.
+INTRA_DIR = os.path.join(DATA, "github_pages", "intraday-data")
+INTRA_CACHE = os.path.join(MONTHLY_DIR, "intraday_months_v3.json")
+
+
+def build_intraday_months(dates):
+    """dates: sorted YYYYMMDD trading days of the daily axis.
+
+    Served shape per day: {"mn": market trades, "g": {grp: flat
+    [binMin, cumEok, ...]}, "i": {issuer: {"g": grp, "b": flat
+    [binMin, amtEok, ...], "n": trades, "a": amount 억원}}}. Hourly
+    totals are derived client-side by summing the 10-minute bins.
+    """
+    if os.path.exists(INTRA_CACHE):
+        months = json.load(open(INTRA_CACHE))
+        print("loaded cached intraday months:", len(months))
+    else:
+        import build_intraday as bid
+        import build_issuers as bi
+        months = {}
+        for d in dates:
+            df = bid.load_day(d)
+            if df is None:
+                continue
+            df = df.copy()
+            df["grp"] = df["issuer"].map(lambda i: group_of(i, bi.industry_of))
+            df["bin"] = (df["t_min"] // 10 * 10).astype(int)
+            day = {"mn": int(len(df)), "g": {}, "i": {}}
+            def grp_key(v):
+                if v is None or v != v:
+                    return None
+                return str(v)
+            for grp, gdf in df.groupby("grp", dropna=False):
+                grp = grp_key(grp)
+                if grp is None:
+                    continue
+                per_bin = gdf.groupby("bin")["amt"].sum().sort_index()
+                flat, run = [], 0.0
+                for b, amt in per_bin.items():
+                    run += float(amt)
+                    flat += [int(b), round(run / 10000.0, 2)]
+                day["g"][grp] = flat
+            for name, idf in df.groupby("issuer"):
+                flat = []
+                for b, a in idf.groupby("bin")["amt"].sum() \
+                        .sort_index().items():
+                    flat += [int(b), round(float(a) / 10000.0, 2)]
+                day["i"][str(name)] = {
+                    "g": grp_key(idf["grp"].iloc[0]), "b": flat,
+                    "n": int(len(idf)),
+                    "a": round(float(idf["amt"].sum()) / 10000.0, 1),
+                }
+            months.setdefault(d[:6], {})[d] = day
+            print(f"  intraday {d}: {len(df)} trades, "
+                  f"{len(day['i'])} issuers")
+        json.dump(months, open(INTRA_CACHE, "w"), ensure_ascii=False,
+                          allow_nan=False)
+        print("computed intraday months:", len(months))
+    os.makedirs(INTRA_DIR, exist_ok=True)
+    total = 0
+    for ym, days in sorted(months.items()):
+        path = os.path.join(INTRA_DIR, ym + ".json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(days, f, ensure_ascii=False, allow_nan=False)
+        total += os.path.getsize(path)
+        print(f"  wrote intraday-data/{ym}.json "
+              f"{os.path.getsize(path)} bytes, {len(days)} days")
+    print("intraday data total:", total, "bytes")
+    return months
 
 if __name__ == "__main__":
     main()

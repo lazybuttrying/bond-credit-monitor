@@ -28,26 +28,64 @@
 <body>
 <div class="wrap">
 <style>
-  .site-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+  .site-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; align-items: center; }
   .site-nav a { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px;
                 background: #fff; color: #1a1a1a; text-decoration: none; font-size: 13.5px; }
   .site-nav a.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .site-nav a.site-logo { border: none; background: none; padding: 7px 6px 7px 0;
+                font-weight: 700; font-size: 15px; }
+  .site-nav a.site-logo.on { background: none; color: #1a1a1a; }
+  .site-nav .menu-btn { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px;
+                background: #fff; color: #1a1a1a; font-size: 13.5px; cursor: pointer; }
+  .site-nav .menu-btn.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .site-sub { display: none; margin: -6px 0 16px; }
+  .site-sub.open { display: block; }
+  .site-sub a { display: block; padding: 8px 10px; color: #1a1a1a; text-decoration: none;
+                font-size: 13.5px; border-bottom: 1px solid #eee; }
+  .site-sub a.on { font-weight: 700; }
+  .site-foot { text-align: center; padding: 16px 0 6px; margin-top: 20px;
+               border-top: 1px solid #eee; font-size: 12.5px; }
+  .site-foot a { color: #888; text-decoration: none; }
 </style>
 <nav class="site-nav">
-  <a href="/bond-credit-monitor/monitor/" data-i18n="nav_monitor">모니터</a>
-  <a href="/bond-credit-monitor/trends/" data-i18n="nav_trends">산업별 전체 추이</a>
-  <a href="/bond-credit-monitor/concepts/" data-i18n="nav_concepts">신용평가 개념 가이드</a>
-  <a href="/bond-credit-monitor/structure/" data-i18n="nav_structure">차환 리스크·등급 내 분산</a>
-  <a href="/bond-credit-monitor/divergence/" data-i18n="nav_divergence">신용-주식 괴리</a>
+  <a class="site-logo" href="/bond-credit-monitor/" data-i18n="nav_logo">회사채 신용 스프레드 모니터</a>
   <a href="/bond-credit-monitor/" data-i18n="nav_monthly">사건별 시장 반응</a>
-  <a href="/bond-credit-monitor/intraday/" data-i18n="nav_intraday">장중 체결 흐름</a>
+  <button type="button" class="menu-btn" id="siteMenuBtn" data-i18n="nav_menu">메뉴 ▾</button>
 </nav>
+<div class="site-sub" id="siteSub">
+  <a href="/bond-credit-monitor/monitor/" data-i18n="nav_monitor">모니터</a>
+  <a href="/bond-credit-monitor/trends/" data-i18n="nav_trends" style="margin-left:16px">산업별 전체 추이</a>
+  <a href="/bond-credit-monitor/structure/" data-i18n="nav_structure" style="margin-left:32px">차환 리스크·등급 내 분산</a>
+  <a href="/bond-credit-monitor/divergence/" data-i18n="nav_divergence" style="margin-left:48px">신용-주식 괴리</a>
+</div>
 <script>
 (function () {
   var here = window.location.pathname.replace(/\/$/, '') || '/';
+  var subHit = false;
+  document.querySelectorAll('.site-sub a').forEach(function (a) {
+    var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
+    if (p === here) { a.classList.add('on'); subHit = true; }
+  });
   document.querySelectorAll('.site-nav a').forEach(function (a) {
+    if (a.classList.contains('site-logo')) return;
     var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
     if (p === here) a.classList.add('on');
+  });
+  var btn = document.getElementById('siteMenuBtn');
+  var sub = document.getElementById('siteSub');
+  if (subHit) { sub.classList.add('open'); btn.classList.add('on'); }
+  btn.addEventListener('click', function () { sub.classList.toggle('open'); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.querySelector('.site-foot')) return;
+    var lang = 'ko';
+    try { lang = localStorage.getItem('bond-lang') || 'ko'; } catch (e) {}
+    var foot = document.createElement('div');
+    foot.className = 'site-foot';
+    var a = document.createElement('a');
+    a.href = '/bond-credit-monitor/concepts/';
+    a.textContent = lang === 'en' ? 'Credit concepts guide' : '신용평가 개념 가이드';
+    foot.appendChild(a);
+    document.body.appendChild(foot);
   });
 })();
 </script>
@@ -102,7 +140,7 @@
       due12: "12개월 내 만기(조)", share: "만기 비중%", spread: "스프레드(bp)",
       gap: "괴리(bp)", implied: "시장평가등급", notch: "등급차",
       meta: (a, b, c) => `발행 데이터 ${a} · 스프레드 ${b} · 민간 신용채권 잔존 ${c}조원`,
-      nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+      nav_logo: "회사채 신용 스프레드 모니터", nav_menu: "메뉴 ▾", nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
       nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
       nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN" },
@@ -118,7 +156,7 @@
       due12: "Due ≤12M(tn)", share: "Due share %", spread: "Spread(bp)",
       gap: "Gap(bp)", implied: "Implied rating", notch: "Notch gap",
       meta: (a, b, c) => `Issue data ${a} · Spreads as of ${b} · Private credit outstanding ${c}tn KRW`,
-      nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+      nav_logo: "Corporate Bond Credit Monitor", nav_menu: "Menu ▾", nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
       nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
       nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한" }
