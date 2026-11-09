@@ -298,7 +298,10 @@ GROUPS = ("market", "ktb", "bank", "corp", "reit", "construct", "estate",
           "sll", "sbs", "cb", "policy")
 
 
-def compute_series():
+def load_frames():
+    """Issuer-date spread frame shared by the group series and the
+    link-analysis payload: per-issuer 5-day rolling median spreads plus
+    the event-page group of each issuer."""
     sys.path.insert(0, DATA)
     import build_issuers as bi
     import pandas as pd
@@ -321,6 +324,12 @@ def compute_series():
         .transform(lambda s: s.rolling(bi.SMOOTH_WIN, min_periods=1).median())
     )
     df["grp"] = df["issuer"].map(lambda i: group_of(i, bi.industry_of))
+    return df
+
+
+def compute_series(df=None):
+    if df is None:
+        df = load_frames()
     out = {}
     for date, g in df.groupby("date"):
         d = {"market": round(float(g["spread_sm"].median()), 1)}
@@ -329,6 +338,37 @@ def compute_series():
             d[b] = round(float(sub.median()), 1) if len(sub) else None
         out[date] = d
     return out
+
+
+ANALYSIS_PATH = os.path.join(MONTHLY_DIR, "daily_analysis_v1.json")
+ANALYSIS_MIN_DAYS = 30
+
+
+def compute_analysis(df, series):
+    """Payload for client-side link analysis: the full daily group
+    series plus per-issuer daily smoothed spreads (issuers observed on
+    at least ANALYSIS_MIN_DAYS days), aligned to one date axis. The
+    events page uses it to build a card for a pasted article link that
+    is not a registered event."""
+    sys.path.insert(0, DATA)
+    import build_issuers as bi
+
+    dates = sorted(series.keys())
+    groups = {k: [series[d][k] for d in dates]
+              for k in ("market", "ktb", "bank", "corp")}
+    by_issuer = {}
+    for issuer, g in df.groupby("issuer"):
+        if issuer.startswith("국고"):
+            continue
+        vals = {d: round(float(v), 1)
+                for d, v in zip(g["date"], g["spread_sm"])}
+        if len(vals) < ANALYSIS_MIN_DAYS:
+            continue
+        by_issuer[issuer] = {
+            "g": group_of(issuer, bi.industry_of) or bi.industry_of(issuer),
+            "s": [vals.get(d) for d in dates],
+        }
+    return {"dates": dates, "groups": groups, "issuers": by_issuer}
 
 
 def fmt(d):
@@ -435,13 +475,25 @@ def intraday_payload(cfg, industry_fn):
 
 
 def main():
-    if os.path.exists(SERIES_PATH):
-        series = json.load(open(SERIES_PATH))
-        print("loaded cached series:", len(series), "days")
-    else:
-        series = compute_series()
+    need_series = not os.path.exists(SERIES_PATH)
+    need_analysis = not os.path.exists(ANALYSIS_PATH)
+    df = load_frames() if (need_series or need_analysis) else None
+    if need_series:
+        series = compute_series(df)
         json.dump(series, open(SERIES_PATH, "w"))
         print("computed series:", len(series), "days")
+    else:
+        series = json.load(open(SERIES_PATH))
+        print("loaded cached series:", len(series), "days")
+    if need_analysis:
+        analysis = compute_analysis(df, series)
+        json.dump(analysis, open(ANALYSIS_PATH, "w"), ensure_ascii=False)
+        print("computed analysis payload:", len(analysis["issuers"]),
+              "issuers,", len(analysis["dates"]), "days")
+    else:
+        analysis = json.load(open(ANALYSIS_PATH))
+        print("loaded cached analysis payload:", len(analysis["issuers"]),
+              "issuers")
     dates = sorted(series.keys())
     idx = {d: i for i, d in enumerate(dates)}
 
@@ -573,6 +625,10 @@ def main():
     assert "/*EVENTS_JSON*/" in tpl
     html = tpl.replace("/*EVENTS_JSON*/", payload)
     assert "EVENTS_JSON" not in html
+    assert "/*ANALYSIS_JSON*/" in html
+    html = html.replace("/*ANALYSIS_JSON*/",
+                        json.dumps(analysis, ensure_ascii=False))
+    assert "ANALYSIS_JSON" not in html
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)

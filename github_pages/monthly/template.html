@@ -41,6 +41,12 @@
   .search-drop button .d { color: #888; font-size: 12.5px; white-space: nowrap; }
   .search-drop .none { padding: 11px 18px; font-size: 14px; color: #888; }
   .past-label { font-size: 13px; color: #888; margin: 26px 0 10px; text-align: center; }
+  .warn { max-width: 560px; margin: 14px auto 0; background: #fff7ed;
+          border: 1px solid #fdba74; border-radius: 10px; padding: 9px 14px;
+          font-size: 13px; font-weight: 600; color: #9a3412;
+          line-height: 1.6; text-align: center; }
+  .card.alarm { border: 2px solid #dc2626; background: #fef2f2; }
+  .card.alarm h2 { color: #b91c1c; }
   .events.center { justify-content: center; }
   .topic { font-size: 14.5px; line-height: 1.9; margin: 0 0 4px; padding-left: 20px; }
   .stats { font-size: 13px; color: #666; margin: 12px 0 4px; }
@@ -70,6 +76,7 @@
       </div>
       <div class="search-drop" id="searchDrop"></div>
     </div>
+    <div class="warn" data-i18n="search_warn">주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.</div>
     <div class="past-label" data-i18n="past_label">이전 사건</div>
     <div class="events center" id="eventBtns"></div>
   </div>
@@ -109,6 +116,9 @@
 window.EVENTS_DATA = /*EVENTS_JSON*/;
 </script>
 <script>
+window.ANALYSIS_DATA = /*ANALYSIS_JSON*/;
+</script>
+<script>
 const I18N = {
 ko: {
   doc_title: "사건별 시장 반응 — 회사채 신용 스프레드 모니터",
@@ -118,7 +128,8 @@ ko: {
   sources_title: "인용 기사",
   page_note: "뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.",
   search_ph: "한국 회사채 관련 뉴스 기사 링크",
-  no_results: "검색 결과가 없습니다",
+  search_warn: "주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.",
+  no_results: "검색 결과가 없습니다. 등록된 회사채 사건의 기사만 찾을 수 있습니다.",
   chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
   chart_title: "차트: 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)",
   chart_desc: "스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이고 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.",
@@ -146,7 +157,8 @@ en: {
   sources_title: "Cited articles",
   page_note: "News summaries follow the Jan-Sep 2026 corporate bond news timeline and are background only. Charts use my own trade data (daily medians after per-issuer 5-day rolling-median smoothing).",
   search_ph: "Paste a link to a Korean corporate bond news article",
-  no_results: "No matching events",
+  search_warn: "Note: this page covers corporate bond events only. Treasury or general rates articles are not searchable, because they cannot be read as corporate bond spreads.",
+  no_results: "No results. Only articles cited by registered corporate bond events can be found.",
   chart_fail: "Could not load the chart (chart library connection failed).",
   chart_title: "Chart: Commercial bank and regular corporate spreads versus maturity-matched KTBs (bp)",
   chart_desc: "Each spread is a bond yield minus the median KTB yield in the same date and remaining-maturity bucket. The black horizontal line is the KTB benchmark at 0 bp. The dotted line is the whole-market median, and the red dotted lines mark policy rate hike days. Gaps are days when a group had no trades to compute a median.",
@@ -217,6 +229,7 @@ function refreshSearch() {
     none.className = 'none';
     none.textContent = t('no_results');
     searchDrop.replaceChildren(none);
+    if (typeof addAnalyzeOption === 'function') addAnalyzeOption(q);
   } else {
     searchDrop.innerHTML = '';
     matches.slice(0, 8).forEach(ev => {
@@ -231,6 +244,7 @@ function refreshSearch() {
       b.addEventListener('click', () => pickEvent(ev.id));
       searchDrop.appendChild(b);
     });
+    if (typeof addAnalyzeOption === 'function') addAnalyzeOption(q);
   }
   searchDrop.style.display = 'block';
 }
@@ -240,6 +254,7 @@ searchInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     const matches = matchEvents(searchInput.value);
     if (matches.length) pickEvent(matches[0].id);
+    else if (typeof analyzeLink === 'function') analyzeLink(searchInput.value.trim());
   }
   if (e.key === 'Escape') searchDrop.style.display = 'none';
 });
@@ -307,6 +322,8 @@ function render(id) {
   currentId = id;
   const card = document.getElementById('eventCard');
   card.style.display = 'block';
+  const evForAlarm = EVENTS.find(e => e.id === id);
+  card.classList.toggle('alarm', !!(evForAlarm && evForAlarm.alarm));
   if (!cardShown) {
     cardShown = true;
     setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
@@ -332,11 +349,21 @@ function render(id) {
   if (noteTxt) { noteEl.textContent = noteTxt; noteEl.style.display = 'block'; }
   else { noteEl.style.display = 'none'; }
   const el = document.getElementById('chart');
-  try {
+  if (ev.no_chart) {
+    el.innerHTML = `<div style="color:#666;font-size:14px;padding:16px 0;line-height:1.7;">${loc(ev, 'no_chart')}</div>`;
+  } else try {
     if (typeof Plotly === 'undefined') throw new Error('chart library unavailable');
     const traces = ['market', 'bank', 'corp'].map(k => ({
       x: ev.dates, y: ev.series[k], mode: 'lines', name: GROUP_NAME[k], line: GROUP_STYLE[k]
     }));
+    if (ev.series.issuer) {
+      traces.push({
+        x: ev.dates, y: ev.series.issuer, mode: 'lines+markers',
+        name: ev.issuer_name, connectgaps: false,
+        line: { width: 2, color: '#dc2626' },
+        marker: { size: 4, color: '#dc2626' }
+      });
+    }
     const shapes = [{
       type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0,
       line: { color: '#111827', width: 1.6 }
@@ -517,6 +544,315 @@ document.getElementById('langBtn').addEventListener('click', () => {
   applyI18n();
 });
 applyI18n();
+</script>
+<script>
+// Link analysis: a pasted article link that is not a registered event
+// is fetched through a reader proxy, dated, matched to an issuer in
+// the trade data, classified (domestic corporate bond, offshore bond,
+// or not a corporate bond story), and rendered as an auto-built card
+// from ANALYSIS_DATA. Registered events keep their hand-written cards;
+// analyzed cards are labeled as automatic and are never mixed into
+// the registry silently.
+const ANA = window.ANALYSIS_DATA || null;
+const ANA_STR = {
+  ko: {
+    btn: "이 링크 분석하기",
+    reading: "기사를 읽는 중입니다",
+    fail: "기사를 읽지 못했습니다. 사이트가 읽기를 막았거나 연결이 끊겼습니다.",
+    read_fail_title: "기사 읽기 실패",
+    read_fail_body: "기사 본문을 읽지 못해 분석을 시작할 수 없습니다. 실패 단계",
+    stage_http: "연결 실패 (사이트 응답 오류)",
+    stage_empty: "본문 없음 (빈 응답)",
+    stage_blocked: "차단됨 (사이트가 읽기를 막음)",
+    stage_network: "네트워크 오류 또는 시간 초과",
+    no_date: "기사에서 날짜를 찾지 못해 분석할 수 없습니다.",
+    offshore: "해외에서 발행한 채권이라 국내 체결 데이터에 흔적이 남지 않습니다. 이 모니터는 국내 회사채 체결만 다룹니다.",
+    not_corp: "회사채 사건으로 읽히지 않습니다. 기사에서 국내 회사채 발행자를 찾지 못했고 회사채 관련 표현도 없었습니다. 이 페이지는 회사채 사건만 다룹니다.",
+    out_range: "데이터 범위 밖의 기사입니다. 체결 데이터는 2026년만 있어 그 이전 기사는 읽을 수 없습니다.",
+    note: "자동 분석 카드입니다. 기사를 읽어 날짜와 발행자를 추정했고, 판정은 사람이 쓴 문장이 아니라 전후 20일 중앙값 수치로 자동 생성했습니다.",
+    group_only: "기사에서 특정 발행자를 찾지 못해 시장 전체로 읽었습니다.",
+    narrowed: "좁아졌습니다", widened: "넓어졌습니다", flat: "거의 그대로였습니다",
+    auto: "자동 분석 결과입니다",
+    no_post: "사건 후 데이터가 아직 없어 전 20일 수치만 확정했습니다",
+    event_label: "사건"
+  },
+  en: {
+    btn: "Analyze this link",
+    reading: "Reading the article",
+    fail: "Could not read the article. The site may block readers, or the connection failed.",
+    read_fail_title: "Article read failure",
+    read_fail_body: "The article body could not be read, so the analysis cannot start. Failure stage",
+    stage_http: "request failed (site response error)",
+    stage_empty: "empty body (blank response)",
+    stage_blocked: "blocked (the site refused the reader)",
+    stage_network: "network error or timeout",
+    no_date: "No date could be found in the article, so it cannot be analyzed.",
+    offshore: "This bond was issued offshore, so it leaves no trace in domestic trade data. This monitor covers domestic corporate bond trades only.",
+    not_corp: "This does not read as a corporate bond event. No domestic corporate bond issuer was found in the article, and there was no corporate bond wording either. This page covers corporate bond events only.",
+    out_range: "This article is outside the data range. Trade data covers 2026 only, so earlier articles cannot be read.",
+    note: "This is an automatic analysis card. The date and issuer were extracted from the article, and the verdict is generated from 20-day median figures, not hand-written.",
+    group_only: "No specific issuer was found in the article, so this is read at the whole-market level.",
+    narrowed: "narrowed", widened: "widened", flat: "barely moved",
+    auto: "Automatic analysis",
+    no_post: "There is no post-event data yet, so only the 20 days before are final",
+    event_label: "Event"
+  }
+};
+const anaT = k => ANA_STR[LANG][k];
+const OUTLETS = {
+  "yna.co.kr": ["연합뉴스", "Yonhap News"],
+  "en.yna.co.kr": ["연합뉴스", "Yonhap News"],
+  "hyundaimotorgroup.com": ["현대자동차그룹", "Hyundai Motor Group"],
+  "sedaily.com": ["서울경제", "Seoul Economic Daily"],
+  "en.sedaily.com": ["서울경제", "Seoul Economic Daily"],
+  "mk.co.kr": ["매일경제", "Maeil Business Newspaper"],
+  "edaily.co.kr": ["이데일리", "Edaily"],
+  "en.edaily.co.kr": ["이데일리", "Edaily"],
+  "asiae.co.kr": ["아시아경제", "Asia Business Daily"],
+  "infomaxai.com": ["연합인포맥스", "Yonhap Infomax"]
+};
+function looksLikeUrl(q) {
+  q = q.trim();
+  return /^https?:\/\/\S+$/i.test(q) || /^[\w-]+(\.[\w-]+)+\/\S+$/.test(q);
+}
+function addAnalyzeOption(q) {
+  if (!ANA || !looksLikeUrl(q)) return;
+  const b = document.createElement('button');
+  const left = document.createElement('span');
+  left.textContent = anaT('btn');
+  const right = document.createElement('span');
+  right.className = 'd';
+  right.textContent = 'auto';
+  b.appendChild(left);
+  b.appendChild(right);
+  b.addEventListener('click', () => analyzeLink(q.trim()));
+  searchDrop.appendChild(b);
+}
+function anaMedian(vals) {
+  const v = vals.filter(x => x !== null && x !== undefined).slice().sort((a, b) => a - b);
+  if (!v.length) return null;
+  const n = v.length;
+  return Math.round((n % 2 ? v[n >> 1] : (v[n / 2 - 1] + v[n / 2]) / 2) * 10) / 10;
+}
+function anaFmt(d) { return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8); }
+function anaDir(pre, post, lang) {
+  const s = ANA_STR[lang];
+  if (pre === null || post === null) return s.flat;
+  if (post < pre - 0.5) return s.narrowed;
+  if (post > pre + 0.5) return s.widened;
+  return s.flat;
+}
+function parseArticle(text, url) {
+  const titleM = text.match(/^Title:\s*(.+)$/m);
+  let title = titleM ? titleM[1].trim() : '';
+  if (title.includes(' | ')) title = title.split(' | ')[0].trim();
+  const bodyIdx = text.indexOf('Markdown Content:');
+  const body = bodyIdx >= 0 ? text.slice(bodyIdx + 'Markdown Content:'.length) : text;
+  let dateStr = null;
+  const pubM = text.match(/^Published Time:\s*(\d{4})-(\d{2})-(\d{2})/m);
+  if (pubM) dateStr = pubM[1] + pubM[2] + pubM[3];
+  if (!dateStr) {
+    const urlM = url.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
+    if (urlM) dateStr = urlM[1] + urlM[2] + urlM[3];
+  }
+  if (!dateStr) {
+    const bodyM = body.slice(0, 3000).match(/(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+    if (bodyM) dateStr = bodyM[1] + bodyM[2].padStart(2, '0') + bodyM[3].padStart(2, '0');
+  }
+  return { title: title, dateStr: dateStr, body: body };
+}
+function findIssuer(title, body) {
+  const names = Object.keys(ANA.issuers).sort((a, b) => b.length - a.length);
+  let hit = null;
+  for (const n of names) if (title.includes(n)) { hit = n; break; }
+  const head = body.slice(0, 3000);
+  for (const n of names) {
+    if (!head.includes(n)) continue;
+    if (!hit) return n;
+    if (n.length > hit.length && n.startsWith(hit)) return n;
+    break;
+  }
+  return hit;
+}
+function extractTopics(body) {
+  const flat = body.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+                   .replace(/\[[^\]]*\]\([^)]*\)/g, ' ')
+                   .replace(/[#>*`]/g, ' ').replace(/\s+/g, ' ');
+  const sentences = flat.split(/(?<=[.。])\s+|(?<=다\.)\s+/);
+  const picks = [];
+  for (const s of sentences) {
+    const t = s.trim();
+    if (t.length >= 25 && t.length <= 160 && /\d/.test(t) &&
+        /(발행|채권|금리|규모|조달|스프레드)/.test(t) &&
+        !/(메뉴|조회수|분량|뉴스 듣기|로그인|회원가입)/.test(t)) {
+      picks.push(t);
+      if (picks.length >= 2) break;
+    }
+  }
+  return picks;
+}
+function anaNotice(title, dateStr, verdictKo, verdictEn, outlet, url) {
+  return {
+    id: 'analyzed-link',
+    title: title || 'Link', title_en: title || 'Link',
+    date_label: dateStr ? anaFmt(dateStr) : '',
+    date_label_en: dateStr ? anaFmt(dateStr) : '',
+    topic: [], topic_en: [],
+    verdict: verdictKo, verdict_en: verdictEn,
+    stats: '', stats_en: '',
+    dates: [], series: { market: [], bank: [], corp: [] }, markers: [],
+    no_chart: verdictKo, no_chart_en: verdictEn,
+    note: ANA_STR.ko.note, note_en: ANA_STR.en.note,
+    sources: [{ outlet: outlet[0], outlet_en: outlet[1],
+                date: dateStr ? anaFmt(dateStr) : '', date_en: dateStr ? anaFmt(dateStr) : '',
+                topic: title || url, topic_en: title || url, url: url }]
+  };
+}
+function buildAnalyzed(parsed, url, outlet) {
+  const dates = ANA.dates;
+  const d = parsed.dateStr;
+  const head = parsed.title + '\n' + parsed.body.slice(0, 2000);
+  if (!d) return anaNotice(parsed.title, d, anaT('no_date'), ANA_STR.en.no_date, outlet, url);
+  if (d < dates[0]) return anaNotice(parsed.title, d, anaT('out_range'), ANA_STR.en.out_range, outlet, url);
+  if (/(달러채|해외\s*공모채|외화채|달러\s*표시|글로벌\s*공모채)/.test(head)) {
+    return anaNotice(parsed.title, d, anaT('offshore'), ANA_STR.en.offshore, outlet, url);
+  }
+  const issuer = findIssuer(parsed.title, parsed.body);
+  const bondish = /(회사채|공모채|채권\s*발행|사채|녹색채권|ESG\s*채권)/.test(head);
+  if (!issuer && !bondish) {
+    return anaNotice(parsed.title, d, anaT('not_corp'), ANA_STR.en.not_corp, outlet, url);
+  }
+  let c = dates.indexOf(d);
+  if (c < 0) {
+    c = 0;
+    for (let i = 0; i < dates.length; i++) if (dates[i] < d) c = i;
+  }
+  const w0 = Math.max(0, c - 60), w1 = Math.min(dates.length, c + 61);
+  const win = dates.slice(w0, w1);
+  const slice = arr => arr.slice(w0, w1);
+  const preIdx = dates.slice(Math.max(0, c - 20), c);
+  const postIdx = dates.slice(c + 1, c + 21);
+  const pick = (arr, idxs) => idxs.map(x => arr[dates.indexOf(x)]);
+  const g = ANA.groups;
+  const mPre = anaMedian(pick(g.market, preIdx)), mPost = anaMedian(pick(g.market, postIdx));
+  const mDay = g.market[c];
+  const series = { market: slice(g.market), bank: slice(g.bank), corp: slice(g.corp) };
+  let issuerSeries = null, iPre = null, iPost = null;
+  if (issuer) {
+    issuerSeries = slice(ANA.issuers[issuer].s);
+    iPre = anaMedian(pick(ANA.issuers[issuer].s, preIdx));
+    iPost = anaMedian(pick(ANA.issuers[issuer].s, postIdx));
+    series.issuer = issuerSeries;
+  }
+  const markers = [{ date: anaFmt(dates[c]), label: ANA_STR.ko.event_label, label_en: 'Event', color: '#dc2626' }];
+  for (const h of ['2026-07-16', '2026-08-27']) {
+    if (win.includes(h)) markers.push({ date: h, label: '인상', label_en: 'Hike', color: '#dc2626' });
+  }
+  const noPost = postIdx.length === 0;
+  const stats = noPost
+    ? `사건 전 20일 중앙값 ${mPre}bp (사건일 ${mDay}bp)`
+    : `사건 전 20일 중앙값 ${mPre}bp → 사건 후 20일 ${mPost}bp (사건일 ${mDay}bp)`;
+  const statsEn = noPost
+    ? `Median 20d before ${mPre}bp (event day ${mDay}bp)`
+    : `Median 20d before ${mPre}bp → 20d after ${mPost}bp (event day ${mDay}bp)`;
+  let verdict, verdictEn;
+  if (issuer) {
+    verdict = noPost
+      ? `${ANA_STR.ko.auto}. ${issuer} 스프레드는 사건 전 20일 중앙값 ${iPre}bp였습니다. ${ANA_STR.ko.no_post}. 시장 중앙값은 ${mPre}bp였습니다.`
+      : `${ANA_STR.ko.auto}. ${issuer} 스프레드는 사건 전 20일 중앙값 ${iPre}bp에서 사건 후 20일 ${iPost}bp로 ${anaDir(iPre, iPost, 'ko')}. 시장 중앙값은 ${mPre}bp에서 ${mPost}bp로 ${anaDir(mPre, mPost, 'ko')}.`;
+    verdictEn = noPost
+      ? `${ANA_STR.en.auto}. The ${issuer} spread had a 20-day median of ${iPre}bp before the event. ${ANA_STR.en.no_post}. The market median was ${mPre}bp.`
+      : `${ANA_STR.en.auto}. The ${issuer} spread ${anaDir(iPre, iPost, 'en')} from a 20-day median of ${iPre}bp before to ${iPost}bp after. The market median ${anaDir(mPre, mPost, 'en')}, ${mPre}bp to ${mPost}bp.`;
+  } else {
+    verdict = noPost
+      ? `${ANA_STR.ko.auto}. ${ANA_STR.ko.group_only} 시장 중앙값은 사건 전 20일 ${mPre}bp였습니다. ${ANA_STR.ko.no_post}.`
+      : `${ANA_STR.ko.auto}. ${ANA_STR.ko.group_only} 시장 중앙값은 사건 전 20일 ${mPre}bp에서 사건 후 20일 ${mPost}bp로 ${anaDir(mPre, mPost, 'ko')}.`;
+    verdictEn = noPost
+      ? `${ANA_STR.en.auto}. ${ANA_STR.en.group_only} The market median was ${mPre}bp over the 20 days before. ${ANA_STR.en.no_post}.`
+      : `${ANA_STR.en.auto}. ${ANA_STR.en.group_only} The market median ${anaDir(mPre, mPost, 'en')}, ${mPre}bp to ${mPost}bp.`;
+  }
+  const topics = extractTopics(parsed.body);
+  const shortTitle = parsed.title.length > 46 ? parsed.title.slice(0, 46) + '…' : parsed.title;
+  return {
+    id: 'analyzed-link',
+    title: shortTitle, title_en: shortTitle,
+    date_label: anaFmt(d), date_label_en: anaFmt(d),
+    topic: topics, topic_en: topics,
+    verdict: verdict, verdict_en: verdictEn,
+    stats: stats, stats_en: statsEn,
+    dates: win.map(anaFmt), series: series, markers: markers,
+    issuer_name: issuer || '',
+    note: ANA_STR.ko.note, note_en: ANA_STR.en.note,
+    sources: [{ outlet: outlet[0], outlet_en: outlet[1],
+                date: anaFmt(d), date_en: anaFmt(d),
+                topic: parsed.title || url, topic_en: parsed.title || url, url: url }]
+  };
+}
+function readFailureStage(ok, statusCode, text) {
+  if (!ok) return 'stage_http';
+  if (!text || text.trim().length < 400) return 'stage_empty';
+  if (/(Attention Required|Access Denied|are you a robot|CAPTCHA|차단되었습니다|접근이 거부)/i.test(text.slice(0, 3000))) return 'stage_blocked';
+  return null;
+}
+function pingReadFail() {
+  try {
+    fetch('https://abacus.jasoncameron.dev/hit/sdykim-bond-credit-monitor/readfail',
+          { keepalive: true }).catch(() => {});
+  } catch (e) { }
+}
+function buildReadFail(url, stageKey, outlet) {
+  const bodyKo = ANA_STR.ko.read_fail_body + ': ' + ANA_STR.ko[stageKey] + '. 주소: ' + url;
+  const bodyEn = ANA_STR.en.read_fail_body + ': ' + ANA_STR.en[stageKey] + '. URL: ' + url;
+  const ev = anaNotice(ANA_STR.ko.read_fail_title, null, bodyKo, bodyEn, outlet, url);
+  ev.title = ANA_STR.ko.read_fail_title;
+  ev.title_en = ANA_STR.en.read_fail_title;
+  ev.alarm = true;
+  return ev;
+}
+async function analyzeLink(rawUrl) {
+  if (!ANA) return;
+  let url = rawUrl;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  const status = document.createElement('div');
+  status.className = 'none';
+  status.textContent = anaT('reading');
+  searchDrop.replaceChildren(status);
+  searchDrop.style.display = 'block';
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { }
+  const outlet = OUTLETS[host] || [host, host];
+  let text = null, stage = null;
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 30000);
+    const res = await fetch('https://r.jina.ai/' + url, { signal: ctl.signal });
+    clearTimeout(timer);
+    text = res.ok ? await res.text() : null;
+    stage = readFailureStage(res.ok, res.status, text);
+  } catch (e) {
+    stage = 'stage_network';
+  }
+  if (stage) {
+    pingReadFail();
+    const failEv = buildReadFail(url, stage, outlet);
+    const oldF = EVENTS.findIndex(e => e.id === 'analyzed-link');
+    if (oldF >= 0) EVENTS.splice(oldF, 1);
+    EVENTS.push(failEv);
+    buildButtons();
+    searchDrop.style.display = 'none';
+    render('analyzed-link');
+    return;
+  }
+  const parsed = parseArticle(text, url);
+  const ev = buildAnalyzed(parsed, url, outlet);
+  const old = EVENTS.findIndex(e => e.id === 'analyzed-link');
+  if (old >= 0) EVENTS.splice(old, 1);
+  EVENTS.push(ev);
+  buildButtons();
+  searchDrop.style.display = 'none';
+  searchInput.value = parsed.title || url;
+  render('analyzed-link');
+}
 </script>
 <script>/*VIEWCOUNT*/(function(){try{fetch('https://abacus.jasoncameron.dev/hit/sdykim-bond-credit-monitor/monthly',{keepalive:true}).catch(function(){});}catch(e){}})();</script>
 </body>
