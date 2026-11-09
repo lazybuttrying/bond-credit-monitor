@@ -47,6 +47,15 @@
           line-height: 1.6; text-align: center; }
   .card.alarm { border: 2px solid #dc2626; background: #fef2f2; }
   .card.alarm h2 { color: #b91c1c; }
+  .ana-status { max-width: 560px; margin: 14px auto 0; display: flex;
+                align-items: center; justify-content: center; gap: 10px;
+                background: #eff6ff; border: 1px solid #93c5fd;
+                border-radius: 10px; padding: 10px 14px;
+                font-size: 14px; font-weight: 600; color: #1d4ed8; }
+  .ana-status .spin { width: 16px; height: 16px; flex: none;
+                      border: 2px solid #bfdbfe; border-top-color: #1d4ed8;
+                      border-radius: 50%; animation: ana-spin 0.8s linear infinite; }
+  @keyframes ana-spin { to { transform: rotate(360deg); } }
   .events.center { justify-content: center; }
   .topic { font-size: 14.5px; line-height: 1.9; margin: 0 0 4px; padding-left: 20px; }
   .stats { font-size: 13px; color: #666; margin: 12px 0 4px; }
@@ -140,6 +149,7 @@
       <div class="search-drop" id="searchDrop"></div>
     </div>
     <div class="warn" data-i18n="search_warn">주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.</div>
+    <div class="ana-status" id="anaStatus" style="display:none"><span class="spin"></span><span id="anaStatusText"></span></div>
     <div class="past-label" data-i18n="past_label">이전 사건</div>
     <div class="events center" id="eventBtns"></div>
   </div>
@@ -404,6 +414,8 @@ function render(id) {
     loc(ev, 'chart_title') || t('chart_title');
   document.getElementById('chartDesc').textContent =
     loc(ev, 'chart_desc') || t('chart_desc');
+  document.getElementById('chartTitle').style.display = ev.no_chart ? 'none' : '';
+  document.getElementById('chartDesc').style.display = ev.no_chart ? 'none' : '';
   document.getElementById('srcList').innerHTML =
     ev.sources.map(s =>
       `<li><a href="${s.url}" target="_blank" rel="noopener">${loc(s, 'topic')}</a> <span class="meta">${loc(s, 'outlet')} ${loc(s, 'date')}</span></li>`).join('');
@@ -620,7 +632,9 @@ const ANA = window.ANALYSIS_DATA || null;
 const ANA_STR = {
   ko: {
     btn: "이 링크 분석하기",
-    reading: "기사를 읽는 중입니다",
+    reading: "분석 중입니다. 기사를 읽는 중입니다",
+    analyzing: "분석 중입니다. 날짜와 발행자를 찾고 스프레드를 계산하는 중입니다",
+    done: "분석이 끝났습니다",
     fail: "기사를 읽지 못했습니다. 사이트가 읽기를 막았거나 연결이 끊겼습니다.",
     read_fail_title: "기사 읽기 실패",
     read_fail_body: "기사 본문을 읽지 못해 분석을 시작할 수 없습니다. 실패 단계",
@@ -641,7 +655,9 @@ const ANA_STR = {
   },
   en: {
     btn: "Analyze this link",
-    reading: "Reading the article",
+    reading: "Analyzing. Reading the article",
+    analyzing: "Analyzing. Extracting the date and issuer and computing spreads",
+    done: "Analysis complete",
     fail: "Could not read the article. The site may block readers, or the connection failed.",
     read_fail_title: "Article read failure",
     read_fail_body: "The article body could not be read, so the analysis cannot start. Failure stage",
@@ -872,8 +888,19 @@ function buildReadFail(url, stageKey, outlet) {
   ev.alarm = true;
   return ev;
 }
+function setAnaStatus(text) {
+  const bar = document.getElementById('anaStatus');
+  if (!bar) return;
+  if (text) {
+    document.getElementById('anaStatusText').textContent = text;
+    bar.style.display = 'flex';
+  } else {
+    bar.style.display = 'none';
+  }
+}
 async function analyzeLink(rawUrl) {
-  if (!ANA) return;
+  if (!ANA || window.__anaRunning) return;
+  window.__anaRunning = true;
   let url = rawUrl;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   const status = document.createElement('div');
@@ -881,6 +908,7 @@ async function analyzeLink(rawUrl) {
   status.textContent = anaT('reading');
   searchDrop.replaceChildren(status);
   searchDrop.style.display = 'block';
+  setAnaStatus(anaT('reading'));
   let host = '';
   try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { }
   const outlet = OUTLETS[host] || [host, host];
@@ -903,9 +931,12 @@ async function analyzeLink(rawUrl) {
     EVENTS.push(failEv);
     buildButtons();
     searchDrop.style.display = 'none';
+    setAnaStatus(null);
+    window.__anaRunning = false;
     render('analyzed-link');
     return;
   }
+  setAnaStatus(anaT('analyzing'));
   const parsed = parseArticle(text, url);
   const ev = buildAnalyzed(parsed, url, outlet);
   const old = EVENTS.findIndex(e => e.id === 'analyzed-link');
@@ -914,6 +945,8 @@ async function analyzeLink(rawUrl) {
   buildButtons();
   searchDrop.style.display = 'none';
   searchInput.value = parsed.title || url;
+  setAnaStatus(null);
+  window.__anaRunning = false;
   render('analyzed-link');
 }
 </script>
