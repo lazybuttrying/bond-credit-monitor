@@ -25,7 +25,7 @@ import sys
 
 DATA = os.path.dirname(os.path.abspath(__file__))
 MONTHLY_DIR = os.path.join(DATA, "github_pages", "monthly")
-SERIES_PATH = os.path.join(MONTHLY_DIR, "daily_series_v2.json")
+SERIES_PATH = os.path.join(MONTHLY_DIR, "daily_series_v3.json")
 
 CONSTRUCT_LIST = {"삼성물산", "DL이앤씨", "SK에코플랜트", "HDC현대산업개발",
                   "IPARK현대산업개발", "현대엔지니어링", "포스코이앤씨"}
@@ -298,6 +298,29 @@ GROUPS = ("market", "ktb", "bank", "corp", "reit", "construct", "estate",
           "sll", "sbs", "cb", "policy")
 
 
+FRAME_CACHE_DIR = os.path.join(DATA, "cache_frames")
+
+
+def _process_file_cached(path, date, bi):
+    """bi.process_file with a per-day parquet cache. The cached frame is
+    valid while it is newer than both the trade file and build_issuers.py
+    itself, so a code change in the issuer pipeline invalidates it."""
+    import pandas as pd
+
+    cp = os.path.join(FRAME_CACHE_DIR, date + ".parquet")
+    if os.path.exists(cp):
+        fresh = os.path.getmtime(cp) >= max(
+            os.path.getmtime(path),
+            os.path.getmtime(os.path.join(DATA, "build_issuers.py")))
+        if fresh:
+            return pd.read_parquet(cp)
+    r, _t = bi.process_file(path)
+    if r is not None and len(r):
+        os.makedirs(FRAME_CACHE_DIR, exist_ok=True)
+        r.to_parquet(cp)
+    return r
+
+
 def load_frames():
     """Issuer-date spread frame shared by the group series and the
     link-analysis payload: per-issuer 5-day rolling median spreads plus
@@ -309,10 +332,10 @@ def load_frames():
     parts = []
     for f in sorted(glob.glob(os.path.join(DATA, "result_today_*.xlsx.parquet"))):
         date = f.split("result_today_")[-1].split(".")[0]
-        if not ("20260101" <= date <= "20261020"):
+        if not ("20240401" <= date <= "20261020"):
             continue
         try:
-            r, _t = bi.process_file(f)
+            r = _process_file_cached(f, date, bi)
         except Exception:
             continue
         if r is not None and len(r):
@@ -340,8 +363,21 @@ def compute_series(df=None):
     return out
 
 
-ANALYSIS_PATH = os.path.join(MONTHLY_DIR, "daily_analysis_v1.json")
+ANALYSIS_PATH = os.path.join(MONTHLY_DIR, "daily_analysis_v2.json")
+ANALYSIS_OUT = os.path.join(DATA, "github_pages", "analysis-data.json")
 ANALYSIS_MIN_DAYS = 30
+
+
+def _json_clean(obj):
+    """Map float NaN to None recursively so the payload is strict JSON
+    (it is fetched and parsed with response.json(), not inlined)."""
+    if isinstance(obj, float):
+        return None if obj != obj else obj
+    if isinstance(obj, dict):
+        return {k: _json_clean(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_clean(v) for v in obj]
+    return obj
 
 
 def compute_analysis(df, series):
@@ -501,7 +537,8 @@ def main():
     def window_for(ev):
         if ev["window"] == "month":
             last = max(d for d in dates if d.startswith(ev["month"]))
-            return dates[:idx[last] + 61]
+            start = next(i for i, d in enumerate(dates) if d >= "20260101")
+            return dates[start:idx[last] + 61]
         if ev["window"] == "around":
             c = idx[ev["center"]]
             return dates[max(0, c - 60):c + 61]
@@ -627,9 +664,12 @@ def main():
     html = tpl.replace("/*EVENTS_JSON*/", payload)
     assert "EVENTS_JSON" not in html
     assert "/*ANALYSIS_JSON*/" in html
-    html = html.replace("/*ANALYSIS_JSON*/",
-                        json.dumps(analysis, ensure_ascii=False))
+    html = html.replace("/*ANALYSIS_JSON*/", "null")
     assert "ANALYSIS_JSON" not in html
+    with open(ANALYSIS_OUT, "w", encoding="utf-8") as f:
+        json.dump(_json_clean(analysis), f, ensure_ascii=False,
+                  allow_nan=False)
+    print("wrote analysis-data.json", os.path.getsize(ANALYSIS_OUT), "bytes")
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)
@@ -649,7 +689,57 @@ def main():
 # standalone fixed-event page. Amounts are 억원, bins are 10-minute starts
 # in minutes from midnight, matching intraday_payload's bin_cum output.
 INTRA_DIR = os.path.join(DATA, "github_pages", "intraday-data")
-INTRA_CACHE = os.path.join(MONTHLY_DIR, "intraday_months_v3.json")
+INTRA_CACHE_DIR = os.path.join(MONTHLY_DIR, "intraday_cache")
+
+
+def _intra_month_fp(ym):
+    import hashlib
+
+    parts = []
+    for f in sorted(glob.glob(os.path.join(
+            DATA, f"result_today_{ym}*.xlsx.parquet"))):
+        st = os.stat(f)
+        parts.append(f"{os.path.basename(f)}:{st.st_size}:{int(st.st_mtime)}")
+    bid_path = os.path.join(DATA, "build_intraday.py")
+    if os.path.exists(bid_path):
+        parts.append(f"build_intraday.py:{int(os.path.getmtime(bid_path))}")
+    return hashlib.md5("|".join(parts).encode()).hexdigest()
+
+
+def _intra_day(d, bid, bi):
+    df = bid.load_day(d)
+    if df is None:
+        return None
+    df = df.copy()
+    df["grp"] = df["issuer"].map(lambda i: group_of(i, bi.industry_of))
+    df["bin"] = (df["t_min"] // 10 * 10).astype(int)
+    day = {"mn": int(len(df)), "g": {}, "i": {}}
+
+    def grp_key(v):
+        if v is None or v != v:
+            return None
+        return str(v)
+
+    for grp, gdf in df.groupby("grp", dropna=False):
+        grp = grp_key(grp)
+        if grp is None:
+            continue
+        per_bin = gdf.groupby("bin")["amt"].sum().sort_index()
+        flat, run = [], 0.0
+        for b, amt in per_bin.items():
+            run += float(amt)
+            flat += [int(b), round(run / 10000.0, 2)]
+        day["g"][grp] = flat
+    for name, idf in df.groupby("issuer"):
+        flat = []
+        for b, a in idf.groupby("bin")["amt"].sum().sort_index().items():
+            flat += [int(b), round(float(a) / 10000.0, 2)]
+        day["i"][str(name)] = {
+            "g": grp_key(idf["grp"].iloc[0]), "b": flat,
+            "n": int(len(idf)),
+            "a": round(float(idf["amt"].sum()) / 10000.0, 1),
+        }
+    return day
 
 
 def build_intraday_months(dates):
@@ -659,52 +749,43 @@ def build_intraday_months(dates):
     [binMin, cumEok, ...]}, "i": {issuer: {"g": grp, "b": flat
     [binMin, amtEok, ...], "n": trades, "a": amount 억원}}}. Hourly
     totals are derived client-side by summing the 10-minute bins.
+
+    Each month is cached separately under intraday_cache/ with a
+    fingerprint of its source files, so a rebuild recomputes only the
+    months whose trades changed.
     """
-    if os.path.exists(INTRA_CACHE):
-        months = json.load(open(INTRA_CACHE))
-        print("loaded cached intraday months:", len(months))
-    else:
-        import build_intraday as bid
-        import build_issuers as bi
-        months = {}
-        for d in dates:
-            df = bid.load_day(d)
-            if df is None:
-                continue
-            df = df.copy()
-            df["grp"] = df["issuer"].map(lambda i: group_of(i, bi.industry_of))
-            df["bin"] = (df["t_min"] // 10 * 10).astype(int)
-            day = {"mn": int(len(df)), "g": {}, "i": {}}
-            def grp_key(v):
-                if v is None or v != v:
-                    return None
-                return str(v)
-            for grp, gdf in df.groupby("grp", dropna=False):
-                grp = grp_key(grp)
-                if grp is None:
-                    continue
-                per_bin = gdf.groupby("bin")["amt"].sum().sort_index()
-                flat, run = [], 0.0
-                for b, amt in per_bin.items():
-                    run += float(amt)
-                    flat += [int(b), round(run / 10000.0, 2)]
-                day["g"][grp] = flat
-            for name, idf in df.groupby("issuer"):
-                flat = []
-                for b, a in idf.groupby("bin")["amt"].sum() \
-                        .sort_index().items():
-                    flat += [int(b), round(float(a) / 10000.0, 2)]
-                day["i"][str(name)] = {
-                    "g": grp_key(idf["grp"].iloc[0]), "b": flat,
-                    "n": int(len(idf)),
-                    "a": round(float(idf["amt"].sum()) / 10000.0, 1),
-                }
-            months.setdefault(d[:6], {})[d] = day
-            print(f"  intraday {d}: {len(df)} trades, "
-                  f"{len(day['i'])} issuers")
-        json.dump(months, open(INTRA_CACHE, "w"), ensure_ascii=False,
-                          allow_nan=False)
-        print("computed intraday months:", len(months))
+    import build_intraday as bid
+    import build_issuers as bi
+
+    os.makedirs(INTRA_CACHE_DIR, exist_ok=True)
+    months = {}
+    by_month = {}
+    for d in dates:
+        by_month.setdefault(d[:6], []).append(d)
+    for ym, mdays in sorted(by_month.items()):
+        fp = _intra_month_fp(ym)
+        cp = os.path.join(INTRA_CACHE_DIR, ym + ".json")
+        cached = None
+        if os.path.exists(cp):
+            try:
+                blob = json.load(open(cp))
+                if blob.get("fp") == fp:
+                    cached = blob["days"]
+            except Exception:
+                cached = None
+        if cached is not None:
+            months[ym] = cached
+            print(f"  intraday {ym}: cached, {len(cached)} days")
+            continue
+        days = {}
+        for d in mdays:
+            day = _intra_day(d, bid, bi)
+            if day is not None:
+                days[d] = day
+        months[ym] = days
+        json.dump({"fp": fp, "days": days}, open(cp, "w"),
+                  ensure_ascii=False, allow_nan=False)
+        print(f"  intraday {ym}: computed, {len(days)} days")
     os.makedirs(INTRA_DIR, exist_ok=True)
     total = 0
     for ym, days in sorted(months.items()):

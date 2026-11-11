@@ -94,7 +94,10 @@ def load_day(date):
     path = os.path.join(DATA, f"result_today_{date}.xlsx.parquet")
     if not os.path.exists(path):
         return None
-    df = pd.read_parquet(path, columns=ALL_COLS)
+    import pyarrow.parquet as pq
+
+    have = set(pq.read_schema(path).names)
+    df = pd.read_parquet(path, columns=[c for c in ALL_COLS if c in have])
     sub = df[[c for c in PROD_COLS if c in df.columns]].copy()
     kept = dedup_trades(sub)
     df = df.loc[kept.index].copy()

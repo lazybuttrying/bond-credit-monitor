@@ -586,7 +586,18 @@ applyI18n();
 // from ANALYSIS_DATA. Registered events keep their hand-written cards;
 // analyzed cards are labeled as automatic and are never mixed into
 // the registry silently.
-const ANA = window.ANALYSIS_DATA || null;
+let ANA = window.ANALYSIS_DATA || null;
+let anaLoadPromise = null;
+function ensureAna() {
+  if (ANA) return Promise.resolve(ANA);
+  if (!anaLoadPromise) {
+    anaLoadPromise = fetch('analysis-data.json')
+      .then(r => { if (!r.ok) throw new Error('analysis data ' + r.status); return r.json(); })
+      .then(j => { ANA = j; return j; })
+      .catch(e => { anaLoadPromise = null; throw e; });
+  }
+  return anaLoadPromise;
+}
 const ANA_STR = {
   ko: {
     btn: "이 링크 분석하기",
@@ -598,6 +609,8 @@ const ANA_STR = {
     read_fail_title: "기사 읽기 실패",
     read_fail_body: "기사 본문을 읽지 못해 분석을 시작할 수 없습니다. 실패 단계",
     stage_http: "연결 실패 (사이트 응답 오류)",
+    loading_data: "분석 중입니다. 분석 데이터를 불러오는 중입니다",
+    stage_data: "분석 데이터 로드 실패",
     stage_empty: "본문 없음 (빈 응답)",
     stage_blocked: "차단됨 (사이트가 읽기를 막음)",
     stage_network: "네트워크 오류 또는 시간 초과",
@@ -625,6 +638,8 @@ const ANA_STR = {
     read_fail_title: "Article read failure",
     read_fail_body: "The article body could not be read, so the analysis cannot start. Failure stage",
     stage_http: "request failed (site response error)",
+    loading_data: "Analyzing. Loading the analysis dataset",
+    stage_data: "analysis dataset failed to load",
     stage_empty: "empty body (blank response)",
     stage_blocked: "blocked (the site refused the reader)",
     stage_network: "network error or timeout",
@@ -661,7 +676,8 @@ function looksLikeUrl(q) {
   return /^https?:\/\/\S+$/i.test(q) || /^[\w-]+(\.[\w-]+)+\/\S+$/.test(q);
 }
 function addAnalyzeOption(q) {
-  if (!ANA || !looksLikeUrl(q)) return;
+  if (!looksLikeUrl(q)) return;
+  ensureAna().catch(() => { });
   const b = document.createElement('button');
   const left = document.createElement('span');
   left.textContent = anaT('btn');
@@ -1122,7 +1138,7 @@ async function enrichRelated(ev, parsed, origUrl) {
   } catch (e) { }
 }
 async function analyzeLink(rawUrl) {
-  if (!ANA || window.__anaRunning) return;
+  if (window.__anaRunning) return;
   window.__anaRunning = true;
   let url = rawUrl;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -1146,6 +1162,10 @@ async function analyzeLink(rawUrl) {
     stage = readFailureStage(res.ok, res.status, text);
   } catch (e) {
     stage = 'stage_network';
+  }
+  if (!stage) {
+    setAnaStatus(anaT('loading_data'));
+    try { await ensureAna(); } catch (e) { stage = 'stage_data'; }
   }
   if (stage) {
     pingReadFail();
