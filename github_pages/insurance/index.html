@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>보험사 투자자 흐름 — 회사채 신용 스프레드 모니터</title>
+<script src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js"></script>
+<style>
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0;
+         background: #f5f6f8; color: #222; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .card .meta { color: #888; font-size: 12px; margin-bottom: 8px; line-height: 1.6; }
+  .chart { width: 100%; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 700px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: #fff; border-radius: 12px; padding: 14px 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .stat .k { color: #888; font-size: 12px; margin-bottom: 6px; line-height: 1.5; }
+  .stat .v { font-size: 22px; font-weight: 700; }
+  .stat .v.neg { color: #c93a3e; }
+  .stat .v.pos { color: #2563eb; }
+  .stat .d { color: #666; font-size: 12px; margin-top: 4px; line-height: 1.5; }
+  .explain { background: #eef4ff; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+             line-height: 1.8; font-size: 14px; }
+  .explain p { margin: 0 0 6px; }
+  .note { color: #888; font-size: 12px; margin-top: 16px; line-height: 1.6; }
+  .fallback { color: #c93a3e; font-size: 13px; padding: 12px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<style>
+  .site-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; align-items: center; }
+  .site-nav a { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px;
+                background: #fff; color: #1a1a1a; text-decoration: none; font-size: 13.5px; }
+  .site-nav a.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .site-nav a.site-logo { border: none; background: none; padding: 7px 6px 7px 0;
+                font-weight: 700; font-size: 15px; }
+  .site-nav a.site-logo.on { background: none; color: #1a1a1a; }
+  .site-nav .menu-btn { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px;
+                background: #fff; color: #1a1a1a; font-size: 13.5px; cursor: pointer; }
+  .site-nav .menu-btn.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .site-sub { display: none; margin: -6px 0 16px; }
+  .site-sub.open { display: block; }
+  .site-sub a { display: block; padding: 8px 10px; color: #1a1a1a; text-decoration: none;
+                font-size: 13.5px; border-bottom: 1px solid #eee; }
+  .site-sub a.on { font-weight: 700; }
+  .site-foot { text-align: center; padding: 16px 0 6px; margin-top: 20px;
+               border-top: 1px solid #eee; font-size: 12.5px; }
+  .site-foot a { color: #888; text-decoration: none; }
+</style>
+<nav class="site-nav">
+  <a class="site-logo" href="/bond-credit-monitor/" data-i18n="nav_logo">회사채 신용 스프레드 모니터</a>
+  <a href="/bond-credit-monitor/" data-i18n="nav_monthly">사건별 시장 반응</a>
+  <button type="button" class="menu-btn" id="siteMenuBtn" data-i18n="nav_menu">메뉴 ▾</button>
+</nav>
+<div class="site-sub" id="siteSub">
+  <a href="/bond-credit-monitor/monitor/" data-i18n="nav_monitor">모니터</a>
+  <a href="/bond-credit-monitor/trends/" data-i18n="nav_trends" style="margin-left:16px">산업별 전체 추이</a>
+  <a href="/bond-credit-monitor/structure/" data-i18n="nav_structure" style="margin-left:32px">차환 리스크·등급 내 분산</a>
+  <a href="/bond-credit-monitor/divergence/" data-i18n="nav_divergence" style="margin-left:48px">신용-주식 괴리</a>
+  <a href="/bond-credit-monitor/insurance/" data-i18n="nav_insurance" style="margin-left:64px">보험사 투자자 흐름</a>
+</div>
+<script>
+(function () {
+  var here = window.location.pathname.replace(/\/$/, '') || '/';
+  var subHit = false;
+  document.querySelectorAll('.site-sub a').forEach(function (a) {
+    var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
+    if (p === here) { a.classList.add('on'); subHit = true; }
+  });
+  document.querySelectorAll('.site-nav a').forEach(function (a) {
+    if (a.classList.contains('site-logo')) return;
+    var p = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '') || '/';
+    if (p === here) a.classList.add('on');
+  });
+  var btn = document.getElementById('siteMenuBtn');
+  var sub = document.getElementById('siteSub');
+  if (subHit) { sub.classList.add('open'); btn.classList.add('on'); }
+  btn.addEventListener('click', function () { sub.classList.toggle('open'); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.querySelector('.site-foot')) return;
+    var lang = 'ko';
+    try { lang = localStorage.getItem('bond-lang') || 'ko'; } catch (e) {}
+    var foot = document.createElement('div');
+    foot.className = 'site-foot';
+    var a = document.createElement('a');
+    a.href = '/bond-credit-monitor/concepts/';
+    a.textContent = lang === 'en' ? 'Credit concepts guide' : '신용평가 개념 가이드';
+    foot.appendChild(a);
+    document.body.appendChild(foot);
+  });
+})();
+</script>
+
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h1 data-i18n="title">보험사 투자자 흐름</h1>
+    <button id="langBtn" style="padding:6px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px">EN</button>
+  </div>
+  <div class="sub" id="metaLine"></div>
+  <div class="sub" id="headline" style="color:#222;font-size:14px"></div>
+  <div class="cards" id="statCards"></div>
+  <div class="card"><h2 data-i18n="ch1_title"></h2><div class="meta" data-i18n="ch1_meta"></div>
+    <div class="chart" id="chMonthly" style="height:300px"></div></div>
+  <div class="card"><h2 data-i18n="ch2_title"></h2><div class="meta" data-i18n="ch2_meta"></div>
+    <div class="chart" id="chInvestors" style="height:340px"></div></div>
+  <div class="card"><h2 data-i18n="ch3_title"></h2><div class="meta" data-i18n="ch3_meta"></div>
+    <div class="chart" id="chTypes" style="height:320px"></div></div>
+  <div class="card"><h2 data-i18n="ch4_title"></h2><div class="meta" data-i18n="ch4_meta"></div>
+    <div class="chart" id="chYields" style="height:300px"></div></div>
+  <div class="explain" id="explainBox"></div>
+  <div class="note" data-i18n="note"></div>
+</div>
+<script>
+const P = {"stats": {"days": 252, "first": "2025-10-24", "last": "2026-11-03", "net_eok": -22949.0, "net_jo": -2.29, "buy_share": 7.7, "sell_share": 14.6, "ktb_share": 61.1, "corp_share": 8.7, "spread_start": 42.2, "spread_end": 68.6, "ktb_change_bp": 114.5, "worst_ym": "2026-03", "worst_eok": -5425.0}, "monthly": [{"ym": "2025-10", "net_eok": 22.0}, {"ym": "2025-11", "net_eok": -3237.0}, {"ym": "2025-12", "net_eok": -3288.0}, {"ym": "2026-01", "net_eok": 1575.0}, {"ym": "2026-02", "net_eok": 2322.0}, {"ym": "2026-03", "net_eok": -5425.0}, {"ym": "2026-04", "net_eok": -2503.0}, {"ym": "2026-05", "net_eok": -2506.0}, {"ym": "2026-06", "net_eok": -2720.0}, {"ym": "2026-07", "net_eok": -935.0}, {"ym": "2026-08", "net_eok": -3581.0}, {"ym": "2026-09", "net_eok": -1111.0}, {"ym": "2026-10", "net_eok": -1437.0}, {"ym": "2026-11", "net_eok": -125.0}], "investors": [{"ko": "보험", "en": "Insurance", "net_eok": -22949.0}, {"ko": "국가와 지자체", "en": "Government", "net_eok": -4323.0}, {"ko": "외국인", "en": "Foreign", "net_eok": 1016.0}, {"ko": "자산운용 사모", "en": "Asset mgmt, private funds", "net_eok": 6895.0}, {"ko": "기금공제", "en": "Pension funds", "net_eok": 14491.0}, {"ko": "종금", "en": "Merchant banks", "net_eok": 21513.0}, {"ko": "은행", "en": "Banks", "net_eok": 40150.0}, {"ko": "자산운용 공모", "en": "Asset mgmt, public funds", "net_eok": 46083.0}, {"ko": "개인", "en": "Individuals", "net_eok": 56604.0}, {"ko": "기타법인", "en": "Other corporates", "net_eok": 80435.0}], "bond_types": [{"ko": "국고채", "en": "KTB", "net_eok": 212083.0}, {"ko": "기타금융채", "en": "Other financial bonds", "net_eok": 60711.0}, {"ko": "특수채", "en": "Special bonds", "net_eok": 50646.0}, {"ko": "은행채", "en": "Bank bonds", "net_eok": 29492.0}, {"ko": "ABS", "en": "ABS", "net_eok": 12354.0}, {"ko": "통안증권", "en": "MSB", "net_eok": 8114.0}, {"ko": "지방채", "en": "Local govt bonds", "net_eok": 954.0}, {"ko": "회사채", "en": "Corporate bonds", "net_eok": -22949.0}], "yields": {"dates": ["2025-10-24", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-26", "2025-12-29", "2025-12-30", "2025-12-31", "2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-19", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-03", "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-04", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-26", "2026-05-27", "2026-05-28", "2026-05-29", "2026-06-01", "2026-06-02", "2026-06-04", "2026-06-05", "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25", "2026-06-26", "2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03"], "ktb_pct": [2.591, 2.62, 2.633, 2.677, 2.732, 2.716, 2.741, 2.729, 2.767, 2.834, 2.894, 2.865, 2.831, 2.923, 2.932, 2.944, 2.914, 2.872, 2.869, 2.908, 2.872, 2.904, 2.902, 2.895, 3.013, 2.991, 3.045, 3.022, 3.041, 3.025, 2.994, 3.034, 3.084, 3.095, 3.101, 3.093, 3.0, 2.999, 2.996, 2.967, 3.01, 2.999, 2.963, 2.939, 2.958, 2.939, 2.952, 2.953, 2.935, 2.933, 2.948, 2.91, 2.902, 2.942, 2.98, 3.003, 2.996, 3.09, 3.08, 3.13, 3.191, 3.138, 3.109, 3.137, 3.096, 3.094, 3.067, 3.106, 3.138, 3.152, 3.189, 3.212, 3.204, 3.233, 3.267, 3.224, 3.2, 3.154, 3.142, 3.178, 3.143, 3.154, 3.158, 3.124, 3.062, 3.041, 3.18, 3.223, 3.189, 3.227, 3.42, 3.283, 3.253, 3.271, 3.338, 3.3, 3.324, 3.261, 3.329, 3.41, 3.617, 3.523, 3.558, 3.552, 3.582, 3.542, 3.552, 3.37, 3.477, 3.448, 3.432, 3.451, 3.315, 3.338, 3.36, 3.382, 3.339, 3.328, 3.34, 3.371, 3.348, 3.33, 3.365, 3.458, 3.496, 3.492, 3.529, 3.525, 3.595, 3.615, 3.595, 3.546, 3.569, 3.598, 3.674, 3.635, 3.654, 3.766, 3.757, 3.751, 3.76, 3.753, 3.736, 3.664, 3.711, 3.766, 3.731, 3.79, 3.773, 3.858, 3.882, 3.94, 3.856, 3.881, 3.904, 3.808, 3.744, 3.717, 3.71, 3.75, 3.784, 3.81, 3.77, 3.772, 3.757, 3.722, 3.733, 3.703, 3.791, 3.747, 3.748, 3.776, 3.78, 3.775, 3.778, 3.768, 3.809, 3.887, 3.866, 3.848, 3.895, 3.867, 3.913, 3.917, 3.959, 3.865, 3.829, 3.8, 3.831, 3.758, 3.742, 3.74, 3.669, 3.742, 3.746, 3.778, 3.808, 3.791, 3.781, 3.796, 3.847, 3.798, 3.811, 3.854, 3.836, 3.83, 3.816, 3.755, 3.788, 3.838, 3.878, 3.93, 3.888, 3.884, 3.9, 3.901, 3.91, 3.93, 4.014, 4.025, 4.091, 4.053, 4.063, 4.035, 4.056, 4.04, 4.006, 4.119, 4.076, 4.011, 4.01, 3.937, 3.933, 3.961, 3.983, 3.921, 3.857, 3.883, 3.867, 3.854, 3.877, 3.84, 3.822, 3.84, 3.803, 3.789, 3.758, 3.799, 3.766, 3.715, 3.74, 3.736], "spread_bp": [42.2, 41.6, 41.4, 40.8, 40.3, 40.6, 40.6, 40.7, 40.2, 39.8, 39.2, 39.6, 40.5, 40.8, 41.3, 42.1, 42.8, 43.7, 43.9, 43.2, 43.6, 43.4, 43.2, 43.3, 43.3, 43.7, 43.6, 44.1, 44.3, 44.9, 45.9, 45.8, 46.1, 47.9, 48.4, 48.9, 49.9, 50.8, 51.1, 51.7, 51.3, 51.4, 53.7, 53.6, 53.1, 53.1, 52.4, 52.3, 52.4, 52.4, 51.2, 51.3, 51.6, 50.3, 48.9, 48.3, 48.5, 47.5, 48.0, 46.9, 46.2, 48.6, 50.6, 50.7, 51.5, 51.3, 52.2, 52.0, 52.0, 51.6, 51.9, 51.9, 52.0, 52.2, 52.0, 53.5, 54.6, 56.2, 56.3, 55.7, 57.5, 57.1, 57.2, 58.1, 59.1, 59.6, 58.9, 57.7, 58.8, 58.8, 57.7, 59.1, 59.2, 59.5, 58.1, 58.7, 58.2, 59.4, 58.6, 58.1, 58.0, 59.8, 60.0, 60.4, 60.0, 61.5, 61.4, 64.1, 63.7, 64.5, 64.9, 65.6, 65.8, 66.1, 65.8, 66.1, 66.6, 66.7, 66.5, 66.6, 66.8, 66.4, 66.3, 64.9, 64.9, 65.5, 65.3, 66.0, 65.3, 65.3, 65.4, 65.3, 64.9, 64.7, 63.7, 63.8, 63.0, 62.5, 62.4, 62.6, 62.6, 62.8, 62.5, 63.1, 62.5, 61.8, 62.2, 62.0, 62.4, 62.2, 61.9, 62.5, 63.6, 61.8, 61.1, 62.5, 62.9, 63.1, 63.5, 63.1, 63.5, 63.2, 64.7, 65.6, 64.6, 65.8, 66.3, 67.2, 67.5, 68.4, 68.5, 68.3, 69.2, 69.8, 70.0, 69.8, 69.7, 69.5, 69.7, 69.6, 69.5, 70.4, 69.1, 69.2, 69.4, 71.1, 71.6, 71.2, 71.0, 72.0, 72.0, 71.8, 72.3, 70.3, 70.2, 69.8, 69.6, 70.5, 70.7, 69.6, 69.5, 69.9, 69.3, 68.8, 68.4, 68.6, 68.4, 69.3, 68.8, 67.8, 67.1, 67.0, 67.9, 68.3, 67.5, 67.4, 67.1, 67.0, 67.4, 66.5, 65.9, 66.3, 66.3, 67.1, 66.8, 67.3, 68.3, 66.9, 67.9, 69.2, 69.1, 70.1, 70.3, 68.3, 66.8, 68.1, 69.9, 68.7, 69.2, 68.7, 68.3, 69.4, 69.3, 68.4, 68.9, 68.7, 68.9, 68.2, 68.3, 69.2, 69.0, 68.6]}};
+(function(){
+  const S = P.stats;
+  const I18N = {
+    ko: {
+      title: "보험사 투자자 흐름",
+      headline: `금리 상승기 ${S.days}거래일 동안 보험은 회사채만 대규모로 팔고 국고채를 샀다.`,
+      meta: `장외 거래 기준, ${S.first} ~ ${S.last}, ${S.days}거래일. 출처: 금융투자협회 FreeSIS 투자자별 거래와 최종호가수익률.`,
+      c1k: "보험 회사채 순매수", c1d: `${S.days}거래일 합계`,
+      c2k: "보험 매도 비중과 매수 비중", c2d: "회사채 전체 거래에서 보험이 차지한 비중",
+      sell: "매도", buy: "매수",
+      c3k: "보험 거래의 채권 구성", c3d: "전체 채권 거래대금 기준",
+      ktb: "국고채", corp: "회사채",
+      c4k: "AA- 스프레드와 국고채 3년 금리", c4d: "같은 기간 변화",
+      spread: "스프레드",
+      ch1_title: "보험 회사채 순매수, 월별",
+      ch1_meta: "양수는 순매수, 음수는 순매도. 2026년 1월과 2월만 의미 있게 양수이고, 가장 큰 순매도는 " + S.worst_ym + " " + Math.abs(S.worst_eok).toLocaleString() + "억원이다.",
+      ch2_title: "회사채 순매수, 투자자별",
+      ch2_meta: "보험이 가장 큰 순매도 주체다. 국가와 지자체도 소폭 순매도이고, 나머지 투자자는 전부 순매수다.",
+      ch3_title: "보험 순매수, 채권 종류별",
+      ch3_meta: "국고채는 대규모 순매수, 회사채만 순매도다. 회사채를 팔고 국고채를 산 교체 그림이다.",
+      ch4_title: "금리와 스프레드, 같은 기간",
+      ch4_meta: "국고채 3년 금리와 회사채 무보증 3년 AA- 스프레드. 보험 순매도가 이어진 기간과 겹친다.",
+      eok: "억원",
+      explain: [
+        "보험사는 장기 부채에 맞춰 채권을 오래 들고 가는 투자자다.",
+        "금리가 오르면 보유 채권 평가가 떨어지고 K-ICS 금리위험 요구자본이 커진다.",
+        "스프레드까지 벌어지면 회사채는 국고채보다 평가 하락이 더 크다.",
+        "그래서 금리 상승기에 보험이 회사채를 줄이고 국고채를 늘리는 흐름은 자산과 부채의 금리 민감도를 맞추려는 움직임으로 읽을 수 있다.",
+        "단, 이 페이지의 거래 데이터만으로 그 인과를 확정하지는 않는다."
+      ],
+      note: "이 페이지는 매매 흐름만 보여준다. 보험사의 채권 보유 잔고나 특정 보험사의 K-ICS 비율 같은 공시 숫자는 다루지 않는다. 거래대금은 장외 기준이고 단위는 억원이다.",
+      nav_logo: "회사채 신용 스프레드 모니터", nav_menu: "메뉴 ▾", nav_monitor: "모니터",
+      nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
+      nav_structure: "차환 리스크와 등급 내 분산", nav_divergence: "신용-주식 괴리",
+      nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
+      nav_insurance: "보험사 투자자 흐름",
+      lang_btn: "EN"
+    },
+    en: {
+      title: "Insurer Flows",
+      headline: `Over ${S.days} trading days of rising rates, insurers sold corporate bonds heavily and bought KTBs instead.`,
+      meta: `OTC trading, ${S.first} ~ ${S.last}, ${S.days} trading days. Source: KOFIA FreeSIS investor trading and final quoted yields.`,
+      c1k: "Insurer net buying, corporate bonds", c1d: `Total over ${S.days} trading days`,
+      c2k: "Insurer share of selling vs buying", c2d: "Share of all corporate bond trading",
+      sell: "Sell side", buy: "Buy side",
+      c3k: "What insurers trade", c3d: "Share of all insurer bond trading value",
+      ktb: "KTB", corp: "Corporate",
+      c4k: "AA- spread and 3Y KTB yield", c4d: "Change over the same period",
+      spread: "Spread",
+      ch1_title: "Insurer net buying of corporate bonds, monthly",
+      ch1_meta: "Positive is net buying, negative is net selling. Only Jan and Feb 2026 are meaningfully positive. The largest net selling month is " + S.worst_ym + " at KRW " + Math.abs(S.worst_eok).toLocaleString() + "00M.",
+      ch2_title: "Corporate bond net buying, by investor",
+      ch2_meta: "Insurers are the largest net sellers. Government is a small net seller too, and every other investor group is a net buyer.",
+      ch3_title: "Insurer net buying, by bond type",
+      ch3_meta: "Large net buying of KTBs, net selling only in corporate bonds. A rotation out of corporates into KTBs.",
+      ch4_title: "Rates and spreads over the same period",
+      ch4_meta: "3Y KTB yield and the unguaranteed 3Y AA- corporate spread, overlapping the insurer net selling period.",
+      eok: "KRW 100M",
+      explain: [
+        "Insurers hold bonds for a long time to match long-term liabilities.",
+        "When rates rise, bond valuations fall and K-ICS interest-rate risk capital charges grow.",
+        "When spreads widen on top of that, corporate bonds lose more value than KTBs.",
+        "So insurers cutting corporates and adding KTBs in a rising-rate period reads as an attempt to align the rate sensitivity of assets and liabilities.",
+        "The trading data on this page alone does not prove that causality."
+      ],
+      note: "This page shows trading flows only. It does not cover insurer bond holdings or any single insurer's disclosed figures such as its K-ICS ratio. Trading value is OTC, in KRW 100M units.",
+      nav_logo: "Corporate Bond Credit Monitor", nav_menu: "Menu ▾", nav_monitor: "Monitor",
+      nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
+      nav_structure: "Refinancing and dispersion", nav_divergence: "Credit-equity divergence",
+      nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
+      nav_insurance: "Insurer flows",
+      lang_btn: "한"
+    }
+  };
+  let LANG = localStorage.getItem('bond-lang') || 'ko';
+  const t = k => I18N[LANG][k];
+  const fmtJo = v => (v < 0 ? "-" : "+") + Math.abs(v).toLocaleString() + (LANG === 'ko' ? "억원" : "");
+  function safePlot(id, traces, layout) {
+    const el = document.getElementById(id);
+    if (typeof Plotly === 'undefined') {
+      el.innerHTML = '<div class="fallback">Chart library failed to load.</div>';
+      return;
+    }
+    try {
+      Plotly.newPlot(id, traces, layout, { displayModeBar: false, responsive: true });
+    } catch (e) {
+      el.innerHTML = '<div class="fallback">Chart failed to render.</div>';
+    }
+  }
+  function render() {
+    document.documentElement.lang = LANG;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const v = t(el.dataset.i18n);
+      if (typeof v === 'string') el.textContent = v;
+    });
+    document.title = t('title') + " — " + (LANG === 'ko' ? "회사채 신용 스프레드 모니터" : "Corporate Bond Credit Spread Monitor");
+    document.getElementById('metaLine').textContent = t('meta');
+    document.getElementById('headline').textContent = t('headline');
+    document.getElementById('langBtn').textContent = t('lang_btn');
+    const cards = [
+      { k: t('c1k'), v: (S.net_jo < 0 ? "-" : "+") + Math.abs(S.net_jo).toFixed(2) + (LANG === 'ko' ? "조원" : " tn"), cls: S.net_eok < 0 ? "neg" : "pos", d: t('c1d') },
+      { k: t('c2k'), v: t('sell') + " " + S.sell_share + "% / " + t('buy') + " " + S.buy_share + "%", cls: "", d: t('c2d') },
+      { k: t('c3k'), v: t('ktb') + " " + S.ktb_share + "% / " + t('corp') + " " + S.corp_share + "%", cls: "", d: t('c3d') },
+      { k: t('c4k'), v: S.spread_start + "bp → " + S.spread_end + "bp", cls: "", d: t('c4d') + ", KTB " + (S.ktb_change_bp > 0 ? "+" : "") + S.ktb_change_bp + "bp" }
+    ];
+    document.getElementById('statCards').innerHTML = cards.map(c =>
+      `<div class="stat"><div class="k">${c.k}</div><div class="v ${c.cls}">${c.v}</div><div class="d">${c.d}</div></div>`).join('');
+    document.getElementById('explainBox').innerHTML = t('explain').map(p => `<p>${p}</p>`).join('');
+    const m = P.monthly;
+    safePlot('chMonthly', [{
+      x: m.map(r => r.ym), y: m.map(r => r.net_eok), type: 'bar',
+      marker: { color: m.map(r => r.net_eok >= 0 ? '#2563eb' : '#c93a3e') },
+      hovertemplate: '%{y:,}<extra></extra>'
+    }], { margin: { t: 10, r: 10, b: 40, l: 55 }, yaxis: { title: t('eok'), zeroline: true }, height: 300 });
+    const inv = P.investors;
+    safePlot('chInvestors', [{
+      x: inv.map(r => r.net_eok), y: inv.map(r => LANG === 'ko' ? r.ko : r.en),
+      type: 'bar', orientation: 'h',
+      marker: { color: inv.map(r => r.net_eok >= 0 ? '#2563eb' : '#c93a3e') },
+      hovertemplate: '%{x:,}<extra></extra>'
+    }], { margin: { t: 10, r: 10, b: 40, l: 130 }, xaxis: { title: t('eok'), zeroline: true }, height: 340 });
+    const bt = P.bond_types;
+    safePlot('chTypes', [{
+      x: bt.map(r => r.net_eok), y: bt.map(r => LANG === 'ko' ? r.ko : r.en),
+      type: 'bar', orientation: 'h',
+      marker: { color: bt.map(r => r.net_eok >= 0 ? '#2563eb' : '#c93a3e') },
+      hovertemplate: '%{x:,}<extra></extra>'
+    }], { margin: { t: 10, r: 10, b: 40, l: 110 }, xaxis: { title: t('eok'), zeroline: true }, height: 320,
+          yaxis: { autorange: 'reversed' } });
+    const yy = P.yields;
+    safePlot('chYields', [
+      { x: yy.dates, y: yy.ktb_pct, mode: 'lines', name: 'KTB 3Y (%)',
+        line: { width: 2, color: '#2563eb' }, hovertemplate: '%{y:.2f}%<extra>KTB 3Y</extra>' },
+      { x: yy.dates, y: yy.spread_bp, mode: 'lines', name: 'AA- ' + t('spread') + ' (bp)', yaxis: 'y2',
+        line: { width: 2, color: '#c93a3e' }, hovertemplate: '%{y:.1f}bp<extra>AA-</extra>' }
+    ], { margin: { t: 10, r: 50, b: 40, l: 45 },
+         yaxis: { title: '%' }, yaxis2: { title: 'bp', overlaying: 'y', side: 'right', showgrid: false },
+         legend: { orientation: 'h', y: -0.25, font: { size: 10 } }, height: 300 });
+  }
+  document.getElementById('langBtn').addEventListener('click', () => {
+    LANG = LANG === 'ko' ? 'en' : 'ko';
+    localStorage.setItem('bond-lang', LANG);
+    render();
+  });
+  render();
+})();
+</script>
+<div class="wrap" style="padding-top:0"><div class="note" style="text-align:center;border-top:1px solid #eee;padding-top:12px">
+<a href="https://sdykim.me/" style="color:#888">sdykim.me</a> / Doyeon Kim
+</div></div>
+<script>/*VIEWCOUNT*/(function(){try{fetch('https://abacus.jasoncameron.dev/hit/sdykim-bond-credit-monitor/insurance',{keepalive:true}).catch(function(){});}catch(e){}})();</script>
+</body>
+</html>

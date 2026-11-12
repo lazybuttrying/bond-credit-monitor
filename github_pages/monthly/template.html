@@ -48,6 +48,11 @@
   .card.alarm { border: 2px solid #dc2626; background: #fef2f2; }
   .card.alarm h2 { color: #b91c1c; }
   .warn.alert { background: #fef2f2; border-color: #f87171; color: #991b1b; }
+  .reg-row { max-width: 560px; margin: 10px auto 0; text-align: center; }
+  .reg-btn { display: inline-block; padding: 7px 14px; border: 1px solid #1a1a1a;
+             border-radius: 20px; background: #1a1a1a; color: #fff;
+             text-decoration: none; font-size: 13px; font-weight: 600; }
+  .reg-hint { display: block; margin-top: 6px; font-size: 12px; color: #888; }
   .ana-status { max-width: 560px; margin: 14px auto 0; display: flex;
                 align-items: center; justify-content: center; gap: 10px;
                 background: #eff6ff; border: 1px solid #93c5fd;
@@ -87,6 +92,7 @@
       <div class="search-drop" id="searchDrop"></div>
     </div>
     <div class="warn" id="warnBox" data-i18n="search_warn">주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.</div>
+    <div class="reg-row"><a class="reg-btn" href="https://github.com/lazybuttrying/bond-credit-monitor/issues/new?template=event-registration.yml" target="_blank" rel="noopener" data-i18n="reg_btn">사건 등록하기</a><span class="reg-hint" data-i18n="reg_hint">누구나 기사 링크로 사건을 등록할 수 있습니다. 검토를 거쳐 승인되면 모두에게 보입니다.</span></div>
     <div class="ana-status" id="anaStatus" style="display:none"><span class="spin"></span><span id="anaStatusText"></span></div>
     <div class="past-label" data-i18n="past_label">이전 사건</div>
     <div class="events center" id="eventBtns"></div>
@@ -140,6 +146,8 @@ ko: {
   page_note: "뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.",
   search_ph: "한국 회사채 관련 뉴스 기사 링크",
   search_warn: "주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.",
+  reg_btn: "사건 등록하기",
+  reg_hint: "누구나 기사 링크로 사건을 등록할 수 있습니다. 검토를 거쳐 승인되면 모두에게 보입니다.",
   no_results: "검색 결과가 없습니다. 등록된 회사채 사건의 기사만 찾을 수 있습니다.",
   chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
   chart_title: "차트: 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)",
@@ -147,7 +155,7 @@ ko: {
   benchmark_label: "국고채 기준 0bp",
   lang_btn: "EN",
   nav_logo: "회사채 신용 스프레드 모니터", nav_menu: "메뉴 ▾", nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
-  nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+  nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리", nav_insurance: "보험사 투자자 흐름",
   nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
   group: { market: "시장 중앙값 (점선)", ktb: "국고채", bank: "상업은행채", corp: "일반회사채" },
   extra: { market: "시장 중앙값 (점선)", reit: "타리츠", construct: "건설업", estate: "부동산업", sll: "SLL중앙", sbs: "SBS", cb: "중앙일보", policy: "정책금융채" },
@@ -169,6 +177,8 @@ en: {
   page_note: "News summaries follow the Jan-Sep 2026 corporate bond news timeline and are background only. Charts use my own trade data (daily medians after per-issuer 5-day rolling-median smoothing).",
   search_ph: "Paste a link to a Korean corporate bond news article",
   search_warn: "Note: this page covers corporate bond events only. Treasury or general rates articles are not searchable, because they cannot be read as corporate bond spreads.",
+  reg_btn: "Register an event",
+  reg_hint: "Anyone can register an event with an article link. Once reviewed and approved, it becomes visible to everyone.",
   no_results: "No results. Only articles cited by registered corporate bond events can be found.",
   chart_fail: "Could not load the chart (chart library connection failed).",
   chart_title: "Chart: Commercial bank and regular corporate spreads versus maturity-matched KTBs (bp)",
@@ -176,7 +186,7 @@ en: {
   benchmark_label: "KTB benchmark, 0 bp",
   lang_btn: "한",
   nav_logo: "Corporate Bond Credit Monitor", nav_menu: "Menu ▾", nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
-  nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+  nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence", nav_insurance: "Insurer flows",
   nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
   group: { market: "Market median (dotted)", ktb: "KTB", bank: "Commercial bank bonds", corp: "Regular corporates" },
   extra: { market: "Market median (dotted)", reit: "Other REITs", construct: "Construction", estate: "Real estate", sll: "SLL JoongAng", sbs: "SBS", cb: "JoongAng Ilbo", policy: "Policy bank bonds" },
@@ -633,7 +643,7 @@ const ANA_STR = {
     no_date: "기사에서 날짜를 찾지 못해 분석할 수 없습니다.",
     offshore: "해외에서 발행한 채권이라 국내 체결 데이터에 흔적이 남지 않습니다. 이 모니터는 국내 회사채 체결만 다룹니다.",
     not_corp: "회사채 사건으로 읽히지 않습니다. 기사에서 국내 회사채 발행자를 찾지 못했고 회사채 관련 표현도 없었습니다. 이 페이지는 회사채 사건만 다룹니다.",
-    out_range: "데이터 범위 밖의 기사입니다. 체결 데이터는 2026년만 있어 그 이전 기사는 읽을 수 없습니다.",
+    out_range: "데이터 범위 밖의 기사입니다. 체결 데이터는 2024년 4월부터 있어 그 이전 기사는 읽을 수 없습니다.",
     note: "자동 분석 카드입니다. 기사를 읽어 날짜와 발행자를 추정했고, 판정은 사람이 쓴 문장이 아니라 전후 20일 중앙값 수치로 자동 생성했습니다.",
     group_only: "기사에서 특정 발행자를 찾지 못해 시장 전체로 읽었습니다.",
     narrowed: "좁아졌습니다", widened: "넓어졌습니다", flat: "거의 그대로였습니다",
@@ -662,7 +672,7 @@ const ANA_STR = {
     no_date: "No date could be found in the article, so it cannot be analyzed.",
     offshore: "This bond was issued offshore, so it leaves no trace in domestic trade data. This monitor covers domestic corporate bond trades only.",
     not_corp: "This does not read as a corporate bond event. No domestic corporate bond issuer was found in the article, and there was no corporate bond wording either. This page covers corporate bond events only.",
-    out_range: "This article is outside the data range. Trade data covers 2026 only, so earlier articles cannot be read.",
+    out_range: "This article is outside the data range. Trade data starts in April 2024, so earlier articles cannot be read.",
     note: "This is an automatic analysis card. The date and issuer were extracted from the article, and the verdict is generated from 20-day median figures, not hand-written.",
     group_only: "No specific issuer was found in the article, so this is read at the whole-market level.",
     narrowed: "narrowed", widened: "widened", flat: "barely moved",

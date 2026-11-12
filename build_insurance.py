@@ -5,9 +5,8 @@ monitor: investor-by-bond-type OTC trading (0270) and final quoted
 yields (0010). Amounts in the parquet are million KRW; the page shows
 eok KRW (million / 100) and jo KRW where noted.
 
-Local preview build: the nav fragment is patched in memory only, the
-shared nav_fragment.html file is not modified, and no view counter is
-embedded. Both change only if the page is approved for live push.
+Live since 2026-11-12: the page is in the shared nav fragment and
+embeds its own view counter, like the other pages.
 """
 import json
 import os
@@ -335,13 +334,14 @@ def build_page(payload):
     nav_path = os.path.join(DATA, "github_pages", "nav_fragment.html")
     with open(nav_path, encoding="utf-8") as f:
         nav = f.read()
-    anchor = '<a href="/bond-credit-monitor/divergence/" data-i18n="nav_divergence" style="margin-left:48px">신용-주식 괴리</a>'
-    assert anchor in nav, "divergence nav anchor not found"
-    insurance_link = ('\n  <a href="/bond-credit-monitor/insurance/" data-i18n="nav_insurance" '
-                      'style="margin-left:64px">보험사 투자자 흐름</a>')
-    nav = nav.replace(anchor, anchor + insurance_link)
+    assert "nav_insurance" in nav, "insurance link missing from nav fragment"
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)
+    counter = ("<script>/*VIEWCOUNT*/(function(){try{fetch("
+               "'https://abacus.jasoncameron.dev/hit/sdykim-bond-credit-monitor/insurance'"
+               ",{keepalive:true}).catch(function(){});}catch(e){}})();</script>")
+    assert "</body>" in html
+    html = html.replace("</body>", counter + "\n</body>", 1)
     outdir = os.path.join(DATA, "github_pages", "insurance")
     os.makedirs(outdir, exist_ok=True)
     out = os.path.join(outdir, "index.html")

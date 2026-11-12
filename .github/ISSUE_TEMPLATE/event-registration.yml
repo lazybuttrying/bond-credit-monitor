@@ -1,0 +1,26 @@
+name: 사건 등록
+description: 기사 링크로 회사채 사건을 등록합니다. 자동 검사를 통과하면 검토용 풀 리퀘스트가 열립니다.
+title: "[사건 등록] "
+labels: ["event-registration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        국내 회사채 사건 기사 링크를 넣어 주세요.
+        해외채, 국고채, 회사채와 무관한 기사는 자동 검사에서 거절됩니다.
+        등록된 사건은 관리자 검토를 거쳐 승인되면 사이트에 모두에게 보입니다.
+  - type: input
+    id: article_url
+    attributes:
+      label: 기사 링크
+      description: 사건을 다룬 기사 한 건의 URL
+      placeholder: https://...
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 참고 사항 (선택)
+      description: 사건을 이해하는 데 도움이 되는 내용이 있으면 적어 주세요. 카드에는 반영되지 않고 검토 참고용입니다.
+    validations:
+      required: false

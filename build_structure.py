@@ -247,7 +247,7 @@ HTML = """<!DOCTYPE html>
       gap: "괴리(bp)", implied: "시장평가등급", notch: "등급차",
       meta: (a, b, c) => `발행 데이터 ${a} · 스프레드 ${b} · 민간 신용채권 잔존 ${c}조원`,
       nav_logo: "회사채 신용 스프레드 모니터", nav_menu: "메뉴 ▾", nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
-      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리", nav_insurance: "보험사 투자자 흐름",
       nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN" },
     en: { title: "Refinancing Risk & Within-Rating Dispersion", back: "← Today's Spread Monitor", to_div: "Credit-Equity Divergence →",
@@ -263,7 +263,7 @@ HTML = """<!DOCTYPE html>
       gap: "Gap(bp)", implied: "Implied rating", notch: "Notch gap",
       meta: (a, b, c) => `Issue data ${a} · Spreads as of ${b} · Private credit outstanding ${c}tn KRW`,
       nav_logo: "Corporate Bond Credit Monitor", nav_menu: "Menu ▾", nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
-      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence", nav_insurance: "Insurer flows",
       nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한" }
   };

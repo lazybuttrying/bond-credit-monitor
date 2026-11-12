@@ -184,7 +184,7 @@ HTML = """<!DOCTYPE html>
       count: n => `${n}개 발행자 · 20일 이동중앙값`,
       meta: (days, first, last) => `최근 ${days}거래일 (${first} ~ ${last}) · 20거래일 이동중앙값 · 유동성 상위 발행자`,
       nav_logo: "회사채 신용 스프레드 모니터", nav_menu: "메뉴 ▾", nav_monitor: "모니터", nav_trends: "산업별 전체 추이", nav_concepts: "신용평가 개념 가이드",
-      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리",
+      nav_structure: "차환 리스크·등급 내 분산", nav_divergence: "신용-주식 괴리", nav_insurance: "보험사 투자자 흐름",
       nav_monthly: "사건별 시장 반응", nav_intraday: "장중 체결 흐름",
       lang_btn: "EN",
     },
@@ -202,7 +202,7 @@ HTML = """<!DOCTYPE html>
       count: n => `${n} issuers · 20d rolling median`,
       meta: (days, first, last) => `Last ${days} trading days (${first} ~ ${last}) · 20-trading-day rolling median · most liquid issuers`,
       nav_logo: "Corporate Bond Credit Monitor", nav_menu: "Menu ▾", nav_monitor: "Monitor", nav_trends: "All trends by industry", nav_concepts: "Credit concepts guide",
-      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence",
+      nav_structure: "Refinancing & dispersion", nav_divergence: "Credit-equity divergence", nav_insurance: "Insurer flows",
       nav_monthly: "Market moves by event", nav_intraday: "Intraday trade flow",
       lang_btn: "한",
     }

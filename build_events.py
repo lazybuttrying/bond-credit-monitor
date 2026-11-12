@@ -659,6 +659,13 @@ def main():
                   f"focus={intra.get('focus_n')} peer={intra.get('peer_n')} "
                   f"market={intra.get('market_n')}")
         out_events.append(out)
+    reg_path = os.path.join(DATA, "registered_events.json")
+    if os.path.exists(reg_path):
+        seen_ids = {e["id"] for e in out_events}
+        for e in json.load(open(reg_path, encoding="utf-8")):
+            if e["id"] not in seen_ids:
+                out_events.append(e)
+                print("registered event merged:", e["id"])
     tpl = open(os.path.join(MONTHLY_DIR, "template.html"), encoding="utf-8").read()
     payload = json.dumps({"events": out_events}, ensure_ascii=False)
     assert "/*EVENTS_JSON*/" in tpl
