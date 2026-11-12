@@ -1,0 +1,76 @@
+name: Register event from issue
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  register:
+    if: contains(github.event.issue.labels.*.name, 'event-registration')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the event card
+        id: build
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          set +e
+          python3 register_event.py --issue-body "$ISSUE_BODY" > result.json
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+          {
+            echo "result<<EOF"
+            cat result.json
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          cat result.json
+
+      - name: Comment and close on rejection
+        if: steps.build.outputs.rc == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          REASON=$(python3 -c "import json; print(json.load(open('result.json'))['reason_ko'])")
+          gh issue comment "$ISSUE" --body "등록이 거절됐습니다. 사유: $REASON"
+          gh issue close "$ISSUE"
+
+      - name: Fail the run on setup errors
+        if: steps.build.outputs.rc != '0' && steps.build.outputs.rc != '3'
+        run: |
+          cat result.json
+          exit 1
+
+      - name: Open a review pull request
+        if: steps.build.outputs.rc == '0'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: registered_events.json
+          branch: register/issue-${{ github.event.issue.number }}
+          commit-message: "Register event from issue #${{ github.event.issue.number }}"
+          title: "사건 등록: issue #${{ github.event.issue.number }}"
+          body: |
+            자동 생성된 사건 카드입니다. 머지하면 다음 사이트 빌드에 반영됩니다.
+
+            ```json
+            ${{ steps.build.outputs.result }}
+            ```
+
+      - name: Link the pull request on the issue
+        if: steps.build.outputs.rc == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          TITLE=$(python3 -c "import json; print(json.load(open('result.json'))['title'])")
+          gh issue comment "$ISSUE" --body "자동 검사를 통과했습니다: $TITLE. 검토용 풀 리퀘스트가 열렸고, 승인돼 머지되면 사이트에 반영됩니다."
