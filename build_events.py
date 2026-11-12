@@ -364,7 +364,8 @@ def compute_series(df=None):
 
 
 ANALYSIS_PATH = os.path.join(MONTHLY_DIR, "daily_analysis_v2.json")
-ANALYSIS_OUT = os.path.join(DATA, "github_pages", "analysis-data.json")
+ANALYSIS_INDEX_OUT = os.path.join(DATA, "github_pages", "analysis-index.json")
+ISSUER_DIR = os.path.join(DATA, "github_pages", "analysis-issuers")
 ANALYSIS_MIN_DAYS = 30
 
 
@@ -666,10 +667,27 @@ def main():
     assert "/*ANALYSIS_JSON*/" in html
     html = html.replace("/*ANALYSIS_JSON*/", "null")
     assert "ANALYSIS_JSON" not in html
-    with open(ANALYSIS_OUT, "w", encoding="utf-8") as f:
-        json.dump(_json_clean(analysis), f, ensure_ascii=False,
-                  allow_nan=False)
-    print("wrote analysis-data.json", os.path.getsize(ANALYSIS_OUT), "bytes")
+    analysis = _json_clean(analysis)
+    index = {
+        "dates": analysis["dates"],
+        "groups": analysis["groups"],
+        "issuers": {},
+    }
+    os.makedirs(ISSUER_DIR, exist_ok=True)
+    stale = {f for f in os.listdir(ISSUER_DIR) if f.endswith(".json")}
+    for i, (name, ent) in enumerate(analysis["issuers"].items()):
+        index["issuers"][name] = {"g": ent.get("g"), "i": i}
+        fn = f"{i}.json"
+        stale.discard(fn)
+        with open(os.path.join(ISSUER_DIR, fn), "w", encoding="utf-8") as f:
+            json.dump({"s": ent.get("s")}, f, ensure_ascii=False,
+                      allow_nan=False)
+    for fn in stale:
+        os.remove(os.path.join(ISSUER_DIR, fn))
+    with open(ANALYSIS_INDEX_OUT, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, allow_nan=False)
+    print("wrote analysis-index.json", os.path.getsize(ANALYSIS_INDEX_OUT),
+          "bytes and", len(index["issuers"]), "issuer files")
     nav = open(os.path.join(DATA, "github_pages", "nav_fragment.html"), encoding="utf-8").read()
     assert "<!--NAV-->" in html
     html = html.replace("<!--NAV-->", nav)

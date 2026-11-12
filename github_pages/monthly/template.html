@@ -591,12 +591,25 @@ let anaLoadPromise = null;
 function ensureAna() {
   if (ANA) return Promise.resolve(ANA);
   if (!anaLoadPromise) {
-    anaLoadPromise = fetch('analysis-data.json')
+    anaLoadPromise = fetch('analysis-index.json')
       .then(r => { if (!r.ok) throw new Error('analysis data ' + r.status); return r.json(); })
       .then(j => { ANA = j; return j; })
       .catch(e => { anaLoadPromise = null; throw e; });
   }
   return anaLoadPromise;
+}
+const issuerLoadPromises = {};
+function ensureIssuer(name) {
+  const e = ANA && ANA.issuers ? ANA.issuers[name] : null;
+  if (!e) return Promise.reject(new Error('unknown issuer'));
+  if (e.s) return Promise.resolve(e);
+  if (!issuerLoadPromises[name]) {
+    issuerLoadPromises[name] = fetch('analysis-issuers/' + e.i + '.json')
+      .then(r => { if (!r.ok) throw new Error('issuer data ' + r.status); return r.json(); })
+      .then(j => { e.s = j.s; return e; })
+      .catch(err => { delete issuerLoadPromises[name]; throw err; });
+  }
+  return issuerLoadPromises[name];
 }
 const ANA_STR = {
   ko: {
@@ -1182,6 +1195,22 @@ async function analyzeLink(rawUrl) {
   }
   setAnaStatus(anaT('analyzing'));
   const parsed = parseArticle(text, url);
+  const iss = findIssuer(parsed.title, parsed.body);
+  if (iss) {
+    try { await ensureIssuer(iss); } catch (e) {
+      pingReadFail();
+      const failEv = buildReadFail(url, 'stage_data', outlet);
+      const oldF = EVENTS.findIndex(e => e.id === 'analyzed-link');
+      if (oldF >= 0) EVENTS.splice(oldF, 1);
+      EVENTS.push(failEv);
+      buildButtons();
+      searchDrop.style.display = 'none';
+      setAnaStatus(null);
+      window.__anaRunning = false;
+      render('analyzed-link');
+      return;
+    }
+  }
   const ev = buildAnalyzed(parsed, url, outlet);
   if (ev.rejected) {
     searchDrop.style.display = 'none';
