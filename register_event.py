@@ -25,6 +25,8 @@ import os
 import re
 import sys
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -315,11 +317,12 @@ def build_payload(ana, parsed, url, outlet, issuer_index):
                           f"to {js_num(m_post)}bp.")
     topics = extract_topics(parsed["body"])
     title = parsed["title"]
-    short_title = title[:46] + "…" if len(title) > 46 else title
+    short_title = event_name(title, d)
     slug = str(issuer_index[issuer]) if issuer else "g"
     payload = {
         "id": f"reg-{d}-{slug}",
-        "title": short_title, "title_en": short_title,
+        "title": short_title,
+        "title_en": event_name_en(title, d) or short_title,
         "date_label": ana_fmt(d), "date_label_en": ana_fmt(d),
         "topic": topics, "topic_en": topics,
         "verdict": verdict, "verdict_en": verdict_en,
@@ -348,6 +351,57 @@ def _open(url, ua, timeout=30):
     req = urllib.request.Request(url, headers={"User-Agent": ua})
     with urllib.request.urlopen(req, timeout=timeout) as res:
         return res.read().decode("utf-8", "replace")
+
+
+def condense_title(title):
+    """Drop the amount clause (', 3,500억 원 규모') from a headline."""
+    t = re.sub(r",?\s*[\d,.]+\s*(?:조\s*)?[\d,]*\s*억?\s*원\s*규모",
+               "", title)
+    t = re.sub(r"\s+", " ", t).strip(" ,")
+    if len(t) > 26:
+        t = t[:26] + "…"
+    return t
+
+
+def event_name(title, d):
+    """Match the hand-written event names: 'M/D summary'."""
+    return f"{int(d[4:6])}/{int(d[6:8])} {condense_title(title)}"
+
+
+MONTHS_EN = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def translate_en(text):
+    """Translate a short Korean event summary to English.
+
+    Uses the keyless Google Translate endpoint. Returns None on any
+    failure so the caller can fall back to the Korean name.
+    """
+    q = urllib.parse.urlencode(
+        {"client": "gtx", "sl": "ko", "tl": "en", "dt": "t", "q": text})
+    url = "https://translate.googleapis.com/translate_a/single?" + q
+    for attempt in range(2):
+        try:
+            data = json.loads(_open(url, BROWSER_UA, timeout=20))
+            out = "".join(seg[0] for seg in data[0]
+                          if seg and seg[0]).strip()
+            if out:
+                return " ".join(
+                    w[:1].upper() + w[1:] if w.islower() else w
+                    for w in out.split(" "))
+        except Exception:
+            if attempt == 0:
+                time.sleep(3)
+    return None
+
+
+def event_name_en(title, d):
+    """English event name: 'Mon D' plus the translated summary."""
+    en = translate_en(condense_title(title))
+    if not en:
+        return None
+    return f"{MONTHS_EN[int(d[4:6]) - 1]} {int(d[6:8])} {en}"
 
 
 def fetch_direct(url):

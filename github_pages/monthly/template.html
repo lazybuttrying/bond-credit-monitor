@@ -811,6 +811,44 @@ function anaNotice(title, dateStr, verdictKo, verdictEn, outlet, url) {
                 topic: title || url, topic_en: title || url, url: url }]
   };
 }
+function condenseTitle(title) {
+  let t = title.replace(/,?\s*[\d,.]+\s*(?:조\s*)?[\d,]*\s*억?\s*원\s*규모/g, '');
+  t = t.replace(/\s+/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
+  if (t.length > 26) t = t.slice(0, 26) + '…';
+  return t;
+}
+
+function eventName(title, dateStr) {
+  return parseInt(dateStr.slice(4, 6), 10) + '/' + parseInt(dateStr.slice(6, 8), 10) + ' ' + condenseTitle(title);
+}
+
+const MONTHS_EN_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+async function enrichTitleEn(ev, parsed) {
+  try {
+    const summary = condenseTitle(parsed.title);
+    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&q=' + encodeURIComponent(summary);
+    let data = null;
+    try {
+      const res = await fetch(url);
+      if (res.ok) data = await res.json();
+    } catch (e) { data = null; }
+    if (!data) {
+      const res = await fetch('https://r.jina.ai/' + url);
+      if (!res.ok) return;
+      const text = await res.text();
+      const i = text.indexOf('[[');
+      if (i < 0) return;
+      data = JSON.parse(text.slice(i));
+    }
+    const out = data[0].map(seg => (seg && seg[0]) || '').join('').trim();
+    if (!out) return;
+    const titled = out.split(' ').map(w => /^[a-z]+$/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(' ');
+    const ds = parsed.dateStr;
+    ev.title_en = MONTHS_EN_SHORT[parseInt(ds.slice(4, 6), 10) - 1] + ' ' + parseInt(ds.slice(6, 8), 10) + ' ' + titled;
+  } catch (e) { /* best effort: title_en keeps the Korean name */ }
+}
+
 function buildAnalyzed(parsed, url, outlet) {
   const dates = ANA.dates;
   const d = parsed.dateStr;
@@ -875,7 +913,7 @@ function buildAnalyzed(parsed, url, outlet) {
       : `${ANA_STR.en.auto}. ${ANA_STR.en.group_only} The market median ${anaDir(mPre, mPost, 'en')}, ${mPre}bp to ${mPost}bp.`;
   }
   const topics = extractTopics(parsed.body);
-  const shortTitle = parsed.title.length > 46 ? parsed.title.slice(0, 46) + '…' : parsed.title;
+  const shortTitle = eventName(parsed.title, parsed.dateStr);
   return {
     id: 'analyzed-link',
     title: shortTitle, title_en: shortTitle,
@@ -1230,6 +1268,7 @@ async function analyzeLink(rawUrl) {
     return;
   }
   setAnaStatus(anaT('related_stage'));
+  await enrichTitleEn(ev, parsed);
   await enrichRelated(ev, parsed, url);
   const old = EVENTS.findIndex(e => e.id === 'analyzed-link');
   if (old >= 0) EVENTS.splice(old, 1);
