@@ -18,11 +18,13 @@ Usage:
   register_event.py --url ... --dry-run
 """
 import argparse
+import html as html_lib
 import json
 import math
 import os
 import re
 import sys
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -336,22 +338,85 @@ def build_payload(ana, parsed, url, outlet, issuer_index):
     return payload, None
 
 
-def fetch_article(url):
-    req = urllib.request.Request(
-        "https://r.jina.ai/" + url,
-        headers={"User-Agent": "bond-event-register/1.0"})
+READER_UA = "bond-event-register/1.0"
+BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+              "AppleWebKit/537.36 (KHTML, like Gecko) "
+              "Chrome/130.0.0.0 Safari/537.36")
+
+
+def _open(url, ua, timeout=30):
+    req = urllib.request.Request(url, headers={"User-Agent": ua})
+    with urllib.request.urlopen(req, timeout=timeout) as res:
+        return res.read().decode("utf-8", "replace")
+
+
+def fetch_direct(url):
+    """Fetch the article page itself and shape it like reader output.
+
+    Fallback for when the reader service is unreachable from the
+    runner. Best effort only: thin or blocked pages still fail the
+    length and marker checks in fetch_article.
+    """
     try:
-        with urllib.request.urlopen(req, timeout=30) as res:
-            text = res.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError:
-        return None, "stage_http"
+        raw = _open(url, BROWSER_UA)
     except Exception:
-        return None, "stage_network"
-    if len(text) < 400:
-        return None, "stage_empty"
-    if any(m in text for m in BLOCK_MARKERS):
-        return None, "stage_blocked"
-    return text, None
+        return None
+    title = ""
+    m = re.search(r'property="og:title" content="([^"]+)"', raw)
+    if not m:
+        m = re.search(r"<title[^>]*>(.*?)</title>", raw, re.S)
+    if m:
+        title = html_lib.unescape(
+            re.sub(r"<[^>]+>", "", m.group(1))).strip()
+    pub = ""
+    m = re.search(r'property="article:published_time" content="([^"]+)"',
+                  raw)
+    if not m:
+        m = re.search(r'"datePublished"\s*:\s*"([^"]+)"', raw)
+    if m:
+        pub = m.group(1)[:10]
+    body = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", raw)
+    body = re.sub(r"(?s)<[^>]+>", "\n", body)
+    body = html_lib.unescape(body)
+    body = re.sub(r"\n\s*\n+", "\n", body).strip()
+    if not title and len(body) < 400:
+        return None
+    text = "Title: " + title + "\n"
+    if pub:
+        text += "Published Time: " + pub + "\n"
+    return text + "\nMarkdown Content:\n" + body
+
+
+def fetch_article(url):
+    target = "https://r.jina.ai/" + url
+    err = "stage_http"
+    for attempt, delay in enumerate((0, 10, 20, 40)):
+        if delay:
+            time.sleep(delay)
+        try:
+            text = _open(target, READER_UA if attempt < 2 else BROWSER_UA)
+        except urllib.error.HTTPError as e:
+            err = "stage_http"
+            if e.code not in (408, 429) and e.code < 500:
+                break
+            continue
+        except Exception:
+            err = "stage_network"
+            continue
+        if len(text) < 400:
+            err = "stage_empty"
+            continue
+        if any(m in text for m in BLOCK_MARKERS):
+            return None, "stage_blocked"
+        return text, None
+    direct = fetch_direct(url)
+    if direct is not None:
+        if len(direct) < 400:
+            return None, "stage_empty"
+        if any(m in direct for m in BLOCK_MARKERS):
+            return None, "stage_blocked"
+        return direct, None
+    return None, err
 
 
 def reject(reason):
