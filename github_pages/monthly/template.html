@@ -150,6 +150,8 @@ ko: {
   reg_hint: "누구나 기사 링크로 사건을 등록할 수 있습니다. 검토를 거쳐 승인되면 모두에게 보입니다.",
   no_results: "검색 결과가 없습니다. 등록된 회사채 사건의 기사만 찾을 수 있습니다.",
   chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
+  event_loading: "사건 데이터를 불러오는 중입니다",
+  event_load_fail: "사건 데이터를 불러오지 못했습니다. 연결을 확인한 뒤 다시 눌러 주세요.",
   chart_title: "차트: 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)",
   chart_desc: "스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이고 빨간 점선은 기준금리 인상일이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다.",
   benchmark_label: "국고채 기준 0bp",
@@ -181,6 +183,8 @@ en: {
   reg_hint: "Anyone can register an event with an article link. Once reviewed and approved, it becomes visible to everyone.",
   no_results: "No results. Only articles cited by registered corporate bond events can be found.",
   chart_fail: "Could not load the chart (chart library connection failed).",
+  event_loading: "Loading event data",
+  event_load_fail: "Could not load the event data. Check the connection and try again.",
   chart_title: "Chart: Commercial bank and regular corporate spreads versus maturity-matched KTBs (bp)",
   chart_desc: "Each spread is a bond yield minus the median KTB yield in the same date and remaining-maturity bucket. The black horizontal line is the KTB benchmark at 0 bp. The dotted line is the whole-market median, and the red dotted lines mark policy rate hike days. Gaps are days when a group had no trades to compute a median.",
   benchmark_label: "KTB benchmark, 0 bp",
@@ -205,6 +209,42 @@ const t = k => I18N[LANG][k];
 const loc = (obj, base) => LANG === 'en' ? (obj[base + '_en'] || obj[base]) : obj[base];
 
 const EVENTS = window.EVENTS_DATA.events;
+// Inline events are metadata stubs (button label plus search fields);
+// each full payload ships in events-data/<id>.json and is fetched on
+// first selection, mirroring the analysis-issuers split. The stub set
+// is snapshotted before any runtime event (link analysis) is pushed.
+const STUB_IDS = new Set(EVENTS.filter(e => e.dates === undefined)
+                               .map(e => e.id));
+const eventLoadPromises = {};
+function ensureEventData(ev) {
+  if (ev._dataLoaded) return Promise.resolve(ev);
+  if (!eventLoadPromises[ev.id]) {
+    eventLoadPromises[ev.id] = fetch('events-data/' + encodeURIComponent(ev.id) + '.json')
+      .then(r => { if (!r.ok) throw new Error('event data ' + r.status); return r.json(); })
+      .then(j => { Object.assign(ev, j); ev._dataLoaded = true; return ev; })
+      .catch(err => { delete eventLoadPromises[ev.id]; throw err; });
+  }
+  return eventLoadPromises[ev.id];
+}
+function paintEventStub(ev) {
+  document.getElementById('eventTitle').textContent =
+    loc(ev, 'title') + ' (' + loc(ev, 'date_label') + ')';
+  document.getElementById('topicList').innerHTML = '';
+  document.getElementById('verdictLine').textContent = '';
+  document.getElementById('statsLine').textContent = '';
+  document.getElementById('chartTitle').textContent = t('chart_title');
+  document.getElementById('chartDesc').textContent = t('chart_desc');
+  document.getElementById('srcList').innerHTML = '';
+  document.getElementById('noteLine').style.display = 'none';
+  document.getElementById('extraWrap').style.display = 'none';
+  document.getElementById('intraWrap').style.display = 'none';
+  document.getElementById('chart').innerHTML =
+    `<div style="color:#666;font-size:14px;padding:16px 0;">${t('event_loading')}</div>`;
+}
+function paintEventLoadError() {
+  document.getElementById('chart').innerHTML =
+    `<div style="color:#666;font-size:14px;padding:16px 0;">${t('event_load_fail')}</div>`;
+}
 const btnWrap = document.getElementById('eventBtns');
 function buildButtons() {
   btnWrap.innerHTML = '';
@@ -354,6 +394,13 @@ function render(id) {
   document.querySelectorAll('#eventBtns button').forEach(b =>
     b.classList.toggle('on', b.dataset.id === id));
   const ev = EVENTS.find(e => e.id === id);
+  if (ev && STUB_IDS.has(id) && !ev._dataLoaded) {
+    paintEventStub(ev);
+    ensureEventData(ev)
+      .then(() => { if (currentId === id) render(id); })
+      .catch(() => { if (currentId === id) paintEventLoadError(); });
+    return;
+  }
   const GROUP_NAME = t('group'), EXTRA_NAME = t('extra');
   document.getElementById('eventTitle').textContent = loc(ev, 'title') + ' (' + loc(ev, 'date_label') + ')';
   document.getElementById('topicList').innerHTML =

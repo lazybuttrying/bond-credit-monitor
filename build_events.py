@@ -381,6 +381,50 @@ def _json_clean(obj):
     return obj
 
 
+EVENTS_DATA_DIR = os.path.join(DATA, "github_pages", "events-data")
+META_KEYS = ("id", "title", "title_en", "date_label", "date_label_en",
+             "issuer_name", "registered")
+SEARCH_SOURCE_KEYS = ("topic", "topic_en", "outlet", "outlet_en", "url")
+
+
+def event_meta(ev):
+    """Inline stub for the events page: button and search metadata.
+
+    The full payload ships in events-data/<id>.json and is fetched on
+    first selection. topic and a slimmed sources list stay inline so
+    text search and registered-link matching keep working without
+    loading every payload. publish_registered.py mirrors this split
+    for registry events.
+    """
+    meta = {k: ev[k] for k in META_KEYS if k in ev}
+    if "topic" in ev:
+        meta["topic"] = ev["topic"]
+    if "topic_en" in ev:
+        meta["topic_en"] = ev["topic_en"]
+    if ev.get("sources"):
+        meta["sources"] = [
+            {k: s[k] for k in SEARCH_SOURCE_KEYS if k in s}
+            for s in ev["sources"]]
+    return meta
+
+
+def write_event_files(events):
+    """Write one strict-JSON payload file per event under
+    events-data/, removing files whose event no longer exists."""
+    os.makedirs(EVENTS_DATA_DIR, exist_ok=True)
+    stale = {f for f in os.listdir(EVENTS_DATA_DIR) if f.endswith(".json")}
+    for ev in events:
+        fn = ev["id"] + ".json"
+        stale.discard(fn)
+        with open(os.path.join(EVENTS_DATA_DIR, fn), "w",
+                  encoding="utf-8") as f:
+            json.dump(_json_clean(ev), f, ensure_ascii=False,
+                      allow_nan=False)
+    for fn in stale:
+        os.remove(os.path.join(EVENTS_DATA_DIR, fn))
+    print("wrote", len(events), "event payload files")
+
+
 def compute_analysis(df, series):
     """Payload for client-side link analysis: the full daily group
     series plus per-issuer daily smoothed spreads (issuers observed on
@@ -666,8 +710,10 @@ def main():
             if e["id"] not in seen_ids:
                 out_events.append(e)
                 print("registered event merged:", e["id"])
+    write_event_files(out_events)
     tpl = open(os.path.join(MONTHLY_DIR, "template.html"), encoding="utf-8").read()
-    payload = json.dumps({"events": out_events}, ensure_ascii=False)
+    payload = json.dumps({"events": [event_meta(e) for e in out_events]},
+                         ensure_ascii=False)
     assert "/*EVENTS_JSON*/" in tpl
     html = tpl.replace("/*EVENTS_JSON*/", payload)
     assert "EVENTS_JSON" not in html
