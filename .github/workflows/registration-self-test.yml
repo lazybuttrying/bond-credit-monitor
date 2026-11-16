@@ -1,0 +1,54 @@
+name: Registration pipeline self-test
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fixture registration checks
+        run: |
+          echo "[]" > /tmp/selftest_registry.json
+          python3 register_event.py \
+            --url "https://www.hyundaimotorgroup.com/ko/news/hyundai-capital-green-bond-issuance" \
+            --registry /tmp/selftest_registry.json --dry-run
+          echo "issuer fixture passed"
+          set +e
+          python3 register_event.py \
+            --url "https://www.yna.co.kr/view/AKR20260721061400003" \
+            --registry /tmp/selftest_registry.json --dry-run
+          code=$?
+          set -e
+          if [ "$code" -ne 3 ]; then
+            echo "offshore fixture must reject with exit 3, got $code"
+            exit 1
+          fi
+          echo "offshore rejection fixture passed"
+
+      - name: Scratch publish check
+        run: |
+          mkdir -p /tmp/pubcheck
+          cp github_pages/index.html /tmp/pubcheck/index.html
+          cp -r github_pages/events-data /tmp/pubcheck/events-data
+          python3 publish_registered.py \
+            --html /tmp/pubcheck/index.html \
+            --registry registered_events.json
+          echo "publish check passed"
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Registration self-test failed" \
+            --body "The weekly registration pipeline self-test failed. Run log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
