@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-registered
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -20,12 +24,12 @@ jobs:
 
       - name: Commit the merged page back
         run: |
-          if git diff --quiet -- github_pages/index.html; then
+          git add github_pages/index.html github_pages/events-data
+          if git diff --cached --quiet; then
             echo "page unchanged"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add github_pages/index.html
             git commit -m "Merge registered events into the events page"
             git push
           fi
@@ -36,10 +40,12 @@ jobs:
         run: |
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/lazybuttrying/lazybuttrying.github.io.git" serving
           cp github_pages/index.html serving/bond-credit-monitor/index.html
+          mkdir -p serving/bond-credit-monitor/events-data
+          rsync -a --delete github_pages/events-data/ serving/bond-credit-monitor/events-data/
           cd serving
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bond-credit-monitor/index.html
+          git add -A bond-credit-monitor/index.html bond-credit-monitor/events-data
           if git diff --cached --quiet; then
             echo "serving page unchanged, nothing to publish"
           else
