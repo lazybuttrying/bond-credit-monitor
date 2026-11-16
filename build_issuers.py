@@ -12,6 +12,10 @@ KOSPI mega-caps (Samsung etc.) barely trade bonds; the liquid universe is
 banks, capitals and policy banks -- where Korean credit signal actually lives.
 
 Outputs issuers.json
+
+Per-file results are cached under cache_issuers/ (see
+process_file_cached), so repeat builds recompute only the trade
+files that changed.
 """
 import glob
 import json
@@ -216,6 +220,68 @@ def process_file(path):
     return iss[["date", "issuer", "rating", "spread_bp", "n", "amount"]], term
 
 
+ISSUER_CACHE_DIR = os.path.join(DATA, "cache_issuers")
+
+
+def _cache_fresh(cp, path):
+    """A cache entry is valid while it is newer than both the trade
+    file and this script, so a code change in the issuer pipeline
+    invalidates it (same rule as build_events.py's frame cache)."""
+    if not os.path.exists(cp):
+        return False
+    return os.path.getmtime(cp) >= max(
+        os.path.getmtime(path), os.path.getmtime(os.path.abspath(__file__)))
+
+
+def process_file_cached(path):
+    """process_file with a per-day parquet cache under cache_issuers/.
+
+    Caches exactly what process_file returns for one trade file: the
+    issuer-day frame plus the term-split frame, or the None result for
+    files with no usable trades (a ".none" marker). A missing term
+    frame is recorded with a "_term.none" marker so a cached entry is
+    never mistaken for a partial one. Unchanged files are served from
+    cache and the caller cannot tell the difference.
+    """
+    m = re.search(r"result_today_(\d{8})\.xlsx\.parquet$", path)
+    if not m:
+        return process_file(path)
+    date = m.group(1)
+    iss_cp = os.path.join(ISSUER_CACHE_DIR, date + ".parquet")
+    term_cp = os.path.join(ISSUER_CACHE_DIR, date + "_term.parquet")
+    none_cp = os.path.join(ISSUER_CACHE_DIR, date + ".none")
+    term_none_cp = os.path.join(ISSUER_CACHE_DIR, date + "_term.none")
+    if _cache_fresh(none_cp, path):
+        return None
+    if _cache_fresh(iss_cp, path) and (
+            os.path.exists(term_cp) or os.path.exists(term_none_cp)):
+        try:
+            iss = pd.read_parquet(iss_cp)
+            term = (None if os.path.exists(term_none_cp)
+                    else pd.read_parquet(term_cp))
+            return iss, term
+        except Exception:
+            pass  # unreadable cache entry: fall through and recompute
+    r = process_file(path)
+    try:
+        os.makedirs(ISSUER_CACHE_DIR, exist_ok=True)
+        for stale in (iss_cp, term_cp, none_cp, term_none_cp):
+            if os.path.exists(stale):
+                os.remove(stale)
+        if r is None:
+            open(none_cp, "w").close()
+        else:
+            iss, term = r
+            iss.to_parquet(iss_cp)
+            if term is None:
+                open(term_none_cp, "w").close()
+            else:
+                term.to_parquet(term_cp)
+    except Exception:
+        pass  # the cache is an optimization only; never fail the build
+    return r
+
+
 def main():
     files = sorted(glob.glob(os.path.join(DATA, "result_today_*.xlsx.parquet")))
     print(f"{len(files)} trade files")
@@ -223,7 +289,7 @@ def main():
     term_parts = []
     for i, f in enumerate(files):
         try:
-            r, t = process_file(f)
+            r, t = process_file_cached(f)
         except Exception as e:  # noqa: BLE001 - keep going on bad files
             print(f"skip {os.path.basename(f)}: {e}")
             continue
