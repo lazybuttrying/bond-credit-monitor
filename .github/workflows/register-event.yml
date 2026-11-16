@@ -6,8 +6,12 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
   issues: write
+  actions: write
+
+concurrency:
+  group: register-event
+  cancel-in-progress: false
 
 jobs:
   register:
@@ -51,26 +55,25 @@ jobs:
           cat result.json
           exit 1
 
-      - name: Open a review pull request
+      - name: Commit the registration and trigger publishing
         if: steps.build.outputs.rc == '0'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          add-paths: registered_events.json
-          branch: register/issue-${{ github.event.issue.number }}
-          commit-message: "Register event from issue #${{ github.event.issue.number }}"
-          title: "사건 등록: issue #${{ github.event.issue.number }}"
-          body: |
-            자동 생성된 사건 카드입니다. 머지하면 다음 사이트 빌드에 반영됩니다.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add registered_events.json
+          git commit -m "Register event from issue #$ISSUE"
+          git push
+          gh workflow run publish-registered.yml --ref main
 
-            ```json
-            ${{ steps.build.outputs.result }}
-            ```
-
-      - name: Link the pull request on the issue
+      - name: Comment the result on the issue
         if: steps.build.outputs.rc == '0'
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           TITLE=$(python3 -c "import json; print(json.load(open('result.json'))['title'])")
-          gh issue comment "$ISSUE" --body "자동 검사를 통과했습니다: $TITLE. 검토용 풀 리퀘스트가 열렸고, 승인돼 머지되면 사이트에 반영됩니다."
+          gh issue comment "$ISSUE" --body "자동 검사를 통과했습니다: $TITLE. 사이트에 자동 등록됩니다."
+          gh issue close "$ISSUE"
