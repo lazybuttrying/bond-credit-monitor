@@ -268,20 +268,20 @@ EVENTS = [
                 "https://en.sedaily.com/finance/2026/10/25/korea-launches-first-kofr-based-corporate-loans-household",
                 "Korea Launches First KOFR-Based Corporate Loans, Household Rollout Pending"),
         ],
-        "verdict_qual": "사전 카드다. 거래 데이터가 2026-10-20에서 멈춰 있어 사건일(10-26) 이후 구간은 아직 없다. 사건 후 판정은 데이터 복구 뒤 20거래일이 지난 뒤 확정한다",
-        "verdict_en": "This is a pre-event card. Trade data stops at 2026-10-20, so the post-event window (after Oct 26) does not exist yet. The post-event verdict will be finalized 20 trading days after the data feed recovers.",
+        "verdict_qual": "사전 카드다. 사건 후 판정은 사건 후 20거래일의 중앙값이 쌓인 뒤 확정한다",
+        "verdict_en": "This is a pre-event card. The post-event verdict will be finalized once 20 post-event trading days of medians are on record.",
         "markers": [],
         "chart_title": "차트: 사건 전 60거래일, 동일 잔존기간 국고채를 기준으로 한 상업은행채와 일반회사채 스프레드 (bp)",
         "chart_title_en": "Chart: Commercial bank and regular corporate spreads versus maturity-matched KTBs, 60 trading days before the event (bp)",
-        "chart_desc": "스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다. 사건일 이후 구간은 데이터 복구되는 대로 붙는다.",
-        "chart_desc_en": "Each spread is a bond yield minus the median KTB yield in the same date and remaining-maturity bucket. The black horizontal line is the KTB benchmark at 0 bp. The dotted line is the whole-market median. Gaps are days when a group had no trades to compute a median. The post-event window will be attached once the data feed recovers.",
+        "chart_desc": "스프레드는 각 채권의 수익률에서 같은 날짜와 같은 잔존기간 구간에 속한 국고채 수익률 중앙값을 뺀 값이다. 검은 가로선은 국고채 기준인 0bp다. 점선은 시장 전체 중앙값이다. 선이 끊긴 구간은 해당 그룹 거래가 없어 중앙값을 못 구한 날이다. 사건일 이후 구간은 거래일이 쌓이는 대로 붙는다.",
+        "chart_desc_en": "Each spread is a bond yield minus the median KTB yield in the same date and remaining-maturity bucket. The black horizontal line is the KTB benchmark at 0 bp. The dotted line is the whole-market median. Gaps are days when a group had no trades to compute a median. The post-event window will be attached as trading days accumulate.",
         "extra_title": "정책금융채 스프레드 (bp)",
         "extra_title_en": "Policy Bank Bond Spreads (bp)",
         "extra_keys": ["policy"],
         "extra_desc": "정책금융채는 산업금융채권(산업은행), 중소기업은행(기업은행) 등 정책금융 발행자 기준이다. 대출 주체가 정책금융기관이라 별도 차트로 분리했다. 점선은 시장 전체 중앙값이다.",
         "extra_desc_en": "Policy bank bonds are grouped by policy-finance issuers such as 산업은행 (KDB bonds) and 중소기업은행 (IBK). They are charted separately because the lenders here are policy institutions. The dotted line is the whole-market median.",
-        "note": "이 카드는 사건 전 60거래일(2026-07-22~2026-10-20) 사전 베이스라인이다. 사건 후 60거래일 차트와 전후 20일 중앙값 판정 수치는 데이터 복구 후 업데이트한다.",
-        "note_en": "This card is a pre-event baseline over the 60 trading days before the event (2026-07-22 to 2026-10-20). The post-event 60-day chart and the 20-day pre/post median verdict figures will be updated after the data feed recovers.",
+        "note": "이 카드는 최근 60거래일 사전 베이스라인이다. 사건 후 60거래일 차트와 전후 20일 중앙값 판정 수치는 사건 후 데이터가 쌓이는 대로 업데이트한다.",
+        "note_en": "This card is a pre-event baseline over the latest 60 trading days. The post-event 60-day chart and the 20-day pre/post median verdict figures will be updated as post-event data accumulates.",
         "intraday": {
             "date": "20261026",
             "focus_issuers": ["산업금융채권", "중소기업은행"],
@@ -321,6 +321,60 @@ def _process_file_cached(path, date, bi):
     return r
 
 
+BASE_END = "20261020"  # axis the live payloads were first built on
+MIN_FULL_ROWS = 3000  # a day beyond BASE_END joins the axis only when full
+
+
+def _full_days_beyond_base():
+    """Trade days after BASE_END whose parquet holds a full day of rows.
+
+    A partial crawl day (20261028 has 559 rows) stays below the bar and
+    out of the axis. If the day is later re-crawled in full, its row
+    count rises over the bar and it joins on the next build by itself.
+    """
+    import pyarrow.parquet as pq
+
+    days = set()
+    for f in glob.glob(os.path.join(DATA, "result_today_*.xlsx.parquet")):
+        date = f.split("result_today_")[-1].split(".")[0]
+        if len(date) != 8 or not date.isdigit() or date <= BASE_END:
+            continue
+        try:
+            if pq.ParquetFile(f).metadata.num_rows >= MIN_FULL_ROWS:
+                days.add(date)
+        except Exception:
+            continue
+    return days
+
+
+def _axis_files():
+    """Trade files on the analysis axis: the base range plus every
+    full day beyond it."""
+    extra = _full_days_beyond_base()
+    out = []
+    for f in sorted(glob.glob(os.path.join(DATA, "result_today_*.xlsx.parquet"))):
+        date = f.split("result_today_")[-1].split(".")[0]
+        if ("20240401" <= date <= BASE_END) or date in extra:
+            out.append(f)
+    return out
+
+
+def _cache_stale(path):
+    """A cached payload is stale when it is missing or when any axis
+    trade file, or the pipeline code itself, is newer than the cache.
+    This is what lets the nightly build extend the axis on its own:
+    the 22:00 fetch lands new files, the 22:40 build sees them newer
+    than the cache and recomputes."""
+    if not os.path.exists(path):
+        return True
+    mt = os.path.getmtime(path)
+    watched = _axis_files() + [
+        os.path.join(DATA, "build_issuers.py"),
+        os.path.abspath(__file__),
+    ]
+    return any(os.path.getmtime(f) > mt for f in watched)
+
+
 def load_frames():
     """Issuer-date spread frame shared by the group series and the
     link-analysis payload: per-issuer 5-day rolling median spreads plus
@@ -330,10 +384,8 @@ def load_frames():
     import pandas as pd
 
     parts = []
-    for f in sorted(glob.glob(os.path.join(DATA, "result_today_*.xlsx.parquet"))):
+    for f in _axis_files():
         date = f.split("result_today_")[-1].split(".")[0]
-        if not ("20240401" <= date <= "20261020"):
-            continue
         try:
             r = _process_file_cached(f, date, bi)
         except Exception:
@@ -556,8 +608,8 @@ def intraday_payload(cfg, industry_fn):
 
 
 def main():
-    need_series = not os.path.exists(SERIES_PATH)
-    need_analysis = not os.path.exists(ANALYSIS_PATH)
+    need_series = _cache_stale(SERIES_PATH)
+    need_analysis = _cache_stale(ANALYSIS_PATH)
     df = load_frames() if (need_series or need_analysis) else None
     if need_series:
         series = compute_series(df)
@@ -624,10 +676,10 @@ def main():
             pre = median([series[d]["market"] for d in dates[-20:]])
             stats = (f"사건 전 20일 시장 중앙값 {pre}bp "
                      f"(데이터 마지막 거래일 {fmt(dates[-1])}, "
-                     f"사건 후 구간은 데이터 복구 후 추가)")
+                     f"사건 후 구간은 거래일이 쌓이는 대로 추가)")
             stats_en = (f"Market median, 20d before the event {pre}bp "
                         f"(last data trading day {fmt(dates[-1])}; "
-                        f"the post-event window is added after the feed recovers)")
+                        f"the post-event window is added as trading days accumulate)")
         else:
             f20 = median([series[d]["market"] for d in win[:20]])
             l20 = median([series[d]["market"] for d in win[-20:]])
