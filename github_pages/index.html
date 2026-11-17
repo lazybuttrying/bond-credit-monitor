@@ -996,8 +996,8 @@ function buildAnalyzed(parsed, url, outlet) {
     series.issuer = issuerSeries;
   }
   const markers = [{ date: anaFmt(dates[c]), label: ANA_STR.ko.event_label, label_en: 'Event', color: '#dc2626' }];
-  for (const h of ['2026-07-16', '2026-08-27']) {
-    if (win.includes(h)) markers.push({ date: h, label: '인상', label_en: 'Hike', color: '#dc2626' });
+  for (const h of ['20260716', '20260827']) {
+    if (win.includes(h)) markers.push({ date: anaFmt(h), label: '인상', label_en: 'Hike', color: '#dc2626' });
   }
   const noPost = postIdx.length === 0;
   const stats = noPost

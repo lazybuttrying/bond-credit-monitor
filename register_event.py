@@ -263,13 +263,12 @@ def build_payload(ana, parsed, url, outlet, issuer_index):
         i_post = ana_median(pick(s, post_idx))
     markers = [{"date": ana_fmt(dates[c]), "label": STR["ko"]["event_label"],
                 "label_en": "Event", "color": "#dc2626"}]
-    # Mirrors the page exactly: the page checks the formatted needle
-    # against raw YYYYMMDD window dates, so hike markers never appear
-    # on analyzed cards today. Kept identical on purpose.
-    for h in ("2026-07-16", "2026-08-27"):
+    # Mirrors the page: win holds raw YYYYMMDD dates, so the needles
+    # use the raw form and the marker date is formatted on push.
+    for h in ("20260716", "20260827"):
         if h in win:
-            markers.append({"date": h, "label": "인상", "label_en": "Hike",
-                            "color": "#dc2626"})
+            markers.append({"date": ana_fmt(h), "label": "인상",
+                            "label_en": "Hike", "color": "#dc2626"})
     no_post = len(post_idx) == 0
     ko, en = STR["ko"], STR["en"]
     if no_post:
