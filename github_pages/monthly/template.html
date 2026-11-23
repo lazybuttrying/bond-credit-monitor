@@ -49,10 +49,27 @@
   .card.alarm h2 { color: #b91c1c; }
   .warn.alert { background: #fef2f2; border-color: #f87171; color: #991b1b; }
   .reg-row { max-width: 560px; margin: 10px auto 0; text-align: center; }
+  .mode-tabs { display: flex; gap: 8px; max-width: 560px; margin: 18px auto 14px; }
+  .mode-tab { flex: 1; padding: 11px 0; border: 1px solid #111827; border-radius: 10px; background: #fff; color: #111827; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .mode-tab.active { background: #111827; color: #fff; }
   .reg-btn { display: inline-block; padding: 7px 14px; border: 1px solid #1a1a1a;
              border-radius: 20px; background: #1a1a1a; color: #fff;
              text-decoration: none; font-size: 13px; font-weight: 600; }
   .reg-hint { display: block; margin-top: 6px; font-size: 12px; color: #888; }
+  .req-wrap { max-width: 640px; margin: 14px auto 0; background: #fff;
+              border: 1px solid #e5e5e5; border-radius: 14px; overflow: hidden;
+              text-align: left; }
+  .req-note { padding: 10px 14px; font-size: 12.5px; color: #666;
+              background: #f7f8fa; text-align: center; line-height: 1.6; }
+  .req-form { padding: 14px 16px 16px; }
+  .req-form input { width: 100%; box-sizing: border-box; padding: 10px 12px;
+                    border: 1px solid #ddd; border-radius: 8px; font-size: 14.5px;
+                    margin-bottom: 10px; background: #fff; color: #1a1a1a; }
+  .req-send-row { text-align: center; }
+  .req-status { margin-top: 10px; font-size: 13.5px; color: #666;
+                min-height: 18px; text-align: center; }
+  .req-status.ok { color: #15803d; font-weight: 600; }
+  .req-status.err { color: #b91c1c; font-weight: 600; }
   .ana-status { max-width: 560px; margin: 14px auto 0; display: flex;
                 align-items: center; justify-content: center; gap: 10px;
                 background: #eff6ff; border: 1px solid #93c5fd;
@@ -84,6 +101,11 @@
   <div class="hero">
     <h1 data-i18n="page_title">사건별 시장 반응</h1>
     <p class="sub" data-i18n="page_sub">사건을 검색하거나 아래에서 고르면, 그 사건 전후의 스프레드를 내 거래 데이터로 보여줍니다.</p>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabSearchBtn" type="button" data-i18n="tab_search">사건 검색</button>
+      <button class="mode-tab" id="tabRequestBtn" type="button" data-i18n="tab_request">등록 요청</button>
+    </div>
+    <div id="searchPanel">
     <div class="search-wrap">
       <div class="search-box">
         <span class="mag">⌕</span>
@@ -92,7 +114,17 @@
       <div class="search-drop" id="searchDrop"></div>
     </div>
     <div class="warn" id="warnBox" data-i18n="search_warn">주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.</div>
-    <div class="reg-row"><a class="reg-btn" href="https://github.com/lazybuttrying/bond-credit-monitor/issues/new?template=event-registration.yml" target="_blank" rel="noopener" data-i18n="reg_btn">사건 등록하기</a><span class="reg-hint" data-i18n="reg_hint">누구나 기사 링크로 사건을 등록할 수 있습니다. 검토를 거쳐 승인되면 모두에게 보입니다.</span></div>
+    </div>
+    <div class="req-wrap" id="reqWrap" style="display:none">
+      <div class="req-note" data-i18n="req_note">링크와 이메일을 넣고 보내기를 누르면 요청이 접수됩니다. 확인 후 등록됩니다.</div>
+      <div class="req-form">
+        <input type="text" id="reqLink" placeholder="기사 링크" autocomplete="off">
+        <input type="email" id="reqEmail" placeholder="이메일" autocomplete="email">
+        <input type="text" id="reqNote" placeholder="남길 말 (선택)" autocomplete="off">
+        <div class="req-send-row"><button class="reg-btn" id="reqSend" type="button" data-i18n="req_send_btn">요청 보내기</button></div>
+        <div class="req-status" id="reqStatus"></div>
+      </div>
+    </div>
     <div class="ana-status" id="anaStatus" style="display:none"><span class="spin"></span><span id="anaStatusText"></span></div>
     <div class="past-label" data-i18n="past_label">이전 사건</div>
     <div class="events center" id="eventBtns"></div>
@@ -146,8 +178,21 @@ ko: {
   page_note: "뉴스 요약은 2026년 1~9월 회사채 뉴스 정리 기준이며 배경 설명이다. 차트는 내 거래 데이터 기준 (발행자별 5일 이동중앙값 평활 후 일별 중앙값)이다.",
   search_ph: "한국 회사채 관련 뉴스 기사 링크",
   search_warn: "주의: 이 페이지는 회사채 사건만 다룹니다. 국고채나 금리 일반 기사는 회사채 스프레드로 읽을 수 없어 검색되지 않습니다.",
-  reg_btn: "사건 등록하기",
-  reg_hint: "누구나 기사 링크로 사건을 등록할 수 있습니다. 검토를 거쳐 승인되면 모두에게 보입니다.",
+  reg_btn: "사건 등록 요청하기",
+  reg_hint: "링크와 이메일을 남기면 요청이 접수됩니다. 확인 후 등록됩니다.",
+  req_btn: "이 기사 등록 요청하기",
+  tab_search: "사건 검색",
+  tab_request: "등록 요청",
+  req_note: "링크와 이메일을 넣고 보내기를 누르면 요청이 접수됩니다. 확인 후 등록됩니다.",
+  req_link_ph: "기사 링크",
+  req_email_ph: "이메일",
+  req_send_btn: "요청 보내기",
+  req_note_ph: "남길 말 (선택)",
+  req_sending: "보내는 중입니다",
+  req_done: "요청이 접수됐습니다. 확인 후 등록됩니다.",
+  req_fail: "보내지 못했습니다. 링크를 확인하고 다시 시도해 주세요.",
+  req_need_link: "기사 링크를 먼저 넣어 주세요.",
+  req_need_email: "이메일을 확인해 주세요.",
   no_results: "검색 결과가 없습니다. 등록된 회사채 사건의 기사만 찾을 수 있습니다.",
   chart_fail: "차트를 불러오지 못했습니다 (차트 라이브러리 연결 실패).",
   event_loading: "사건 데이터를 불러오는 중입니다",
@@ -179,8 +224,21 @@ en: {
   page_note: "News summaries follow the Jan-Sep 2026 corporate bond news timeline and are background only. Charts use my own trade data (daily medians after per-issuer 5-day rolling-median smoothing).",
   search_ph: "Paste a link to a Korean corporate bond news article",
   search_warn: "Note: this page covers corporate bond events only. Treasury or general rates articles are not searchable, because they cannot be read as corporate bond spreads.",
-  reg_btn: "Register an event",
-  reg_hint: "Anyone can register an event with an article link. Once reviewed and approved, it becomes visible to everyone.",
+  reg_btn: "Request an event",
+  reg_hint: "Leave an article link and your email to send a request. Each request is checked before it is registered.",
+  req_btn: "Request registration for this article",
+  tab_search: "Search events",
+  tab_request: "Request registration",
+  req_note: "Enter the article link and your email, then press send. Each request is checked before it is registered.",
+  req_link_ph: "Article link",
+  req_email_ph: "Email",
+  req_send_btn: "Send request",
+  req_note_ph: "Note (optional)",
+  req_sending: "Sending",
+  req_done: "Your request was received. It will be registered after a check.",
+  req_fail: "Could not send. Check the link and try again.",
+  req_need_link: "Paste the article link first.",
+  req_need_email: "Check your email address.",
   no_results: "No results. Only articles cited by registered corporate bond events can be found.",
   chart_fail: "Could not load the chart (chart library connection failed).",
   event_loading: "Loading event data",
@@ -293,6 +351,15 @@ function refreshSearch() {
     none.textContent = t('no_results');
     searchDrop.replaceChildren(none);
     if (typeof addAnalyzeOption === 'function') addAnalyzeOption(q);
+    const rb = document.createElement('button');
+    const rl = document.createElement('span');
+    rl.textContent = t('req_btn');
+    rb.appendChild(rl);
+    rb.addEventListener('click', () => {
+      searchDrop.style.display = 'none';
+      openRequestForm(looksLikeUrl(q) ? q.trim() : '');
+    });
+    searchDrop.appendChild(rb);
   } else {
     searchDrop.innerHTML = '';
     matches.slice(0, 8).forEach(ev => {
@@ -324,6 +391,52 @@ searchInput.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('.search-wrap')) searchDrop.style.display = 'none';
 });
+function setMode(mode) {
+  const isSearch = mode === 'search';
+  document.getElementById('searchPanel').style.display = isSearch ? 'block' : 'none';
+  document.getElementById('reqWrap').style.display = isSearch ? 'none' : 'block';
+  document.getElementById('tabSearchBtn').classList.toggle('active', isSearch);
+  document.getElementById('tabRequestBtn').classList.toggle('active', !isSearch);
+}
+function openRequestForm(prefill) {
+  if (prefill) document.getElementById('reqLink').value = prefill;
+  setMode('request');
+  document.getElementById('reqWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function setReqStatus(text, cls) {
+  const st = document.getElementById('reqStatus');
+  st.textContent = text;
+  st.className = 'req-status' + (cls ? ' ' + cls : '');
+}
+async function sendRequest() {
+  const link = document.getElementById('reqLink').value.trim();
+  const email = document.getElementById('reqEmail').value.trim();
+  const note = document.getElementById('reqNote').value.trim();
+  if (!/^https?:\/\/\S+$/i.test(link)) {
+    setReqStatus(t('req_need_link'), 'err');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setReqStatus(t('req_need_email'), 'err');
+    return;
+  }
+  setReqStatus(t('req_sending'), '');
+  try {
+    const r = await fetch('api/request-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: link, email: email, note: note }),
+    });
+    const data = await r.json();
+    if (data.ok) setReqStatus(t('req_done'), 'ok');
+    else setReqStatus(t('req_fail'), 'err');
+  } catch (e) {
+    setReqStatus(t('req_fail'), 'err');
+  }
+}
+document.getElementById('tabSearchBtn').addEventListener('click', () => setMode('search'));
+document.getElementById('tabRequestBtn').addEventListener('click', () => setMode('request'));
+document.getElementById('reqSend').addEventListener('click', sendRequest);
 const GROUP_STYLE = {
   market: { width: 2, color: '#666', dash: 'dot' },
   bank: { width: 2, color: '#2563eb' },
@@ -624,6 +737,9 @@ function applyI18n() {
   document.title = t('doc_title');
   if (typeof refreshWarn === 'function') refreshWarn();
   searchInput.placeholder = t('search_ph');
+  document.getElementById('reqLink').placeholder = t('req_link_ph');
+  document.getElementById('reqEmail').placeholder = t('req_email_ph');
+  document.getElementById('reqNote').placeholder = t('req_note_ph');
   document.getElementById('langBtn').textContent = t('lang_btn');
   buildButtons();
   if (currentId) render(currentId);
