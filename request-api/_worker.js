@@ -48,7 +48,32 @@ async function handleRequest(request, env) {
   } catch (e) {
     return json({ ok: false, error: 'store_failed' }, 502);
   }
-  return json({ ok: true });
+  return json({ ok: true, key });
+}
+
+async function handleStatus(request, env) {
+  if (request.method !== 'GET') return json({ ok: false, error: 'method' }, 405);
+  const url = new URL(request.url);
+  const key = url.searchParams.get('key') || '';
+  if (!/^requests\/[A-Za-z0-9][A-Za-z0-9._-]*\.json$/.test(key)) {
+    return json({ ok: false, error: 'bad_key' }, 400);
+  }
+  const base = key.slice('requests/'.length);
+  const verdict = await env.REQUESTS.get('verdicts/' + base);
+  if (!verdict) return json({ ok: true, status: 'pending' });
+  let v;
+  try {
+    v = JSON.parse(await verdict.text());
+  } catch (e) {
+    return json({ ok: false, error: 'bad_verdict' }, 500);
+  }
+  return json({
+    ok: true,
+    status: v.status,
+    reason: v.reason || '',
+    reason_ko: v.reason_ko || '',
+    reason_en: v.reason_en || '',
+  });
 }
 
 function page(title, body, status) {
@@ -114,6 +139,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/request-event') return handleRequest(request, env);
     if (url.pathname === '/api/approve-request') return handleApprove(request, env);
+    if (url.pathname === '/api/request-status') return handleStatus(request, env);
     return env.ASSETS.fetch(request);
   },
 };

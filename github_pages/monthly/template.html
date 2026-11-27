@@ -190,6 +190,8 @@ ko: {
   req_note_ph: "남길 말 (선택)",
   req_sending: "보내는 중입니다",
   req_done: "요청이 접수됐습니다. 확인 후 등록됩니다.",
+  req_checking: "회사채 여부를 확인 중입니다. 잠시만 기다려 주세요.",
+  req_not_registrable: "이 기사는 등록할 수 없습니다.",
   req_fail: "보내지 못했습니다. 링크를 확인하고 다시 시도해 주세요.",
   req_need_link: "기사 링크를 먼저 넣어 주세요.",
   req_need_email: "이메일을 확인해 주세요.",
@@ -236,6 +238,8 @@ en: {
   req_note_ph: "Note (optional)",
   req_sending: "Sending",
   req_done: "Your request was received. It will be registered after a check.",
+  req_checking: "Checking whether this is a corporate bond article. Please wait a moment.",
+  req_not_registrable: "This article cannot be registered.",
   req_fail: "Could not send. Check the link and try again.",
   req_need_link: "Paste the article link first.",
   req_need_email: "Check your email address.",
@@ -311,13 +315,17 @@ function buildButtons() {
     b.textContent = loc(ev, 'title');
     b.dataset.id = ev.id;
     if (ev.id === currentId) b.classList.add('on');
-    b.addEventListener('click', () => render(ev.id));
+    b.addEventListener('click', () => { pushEventUrl(ev.id); render(ev.id); });
     btnWrap.appendChild(b);
   });
 }
 const searchInput = document.getElementById('eventSearch');
 const searchDrop = document.getElementById('searchDrop');
 function eventHaystack(ev) {
+  // Prebuilt at build time: every word the event card shows, lowercased.
+  if (typeof ev.search === 'string' && ev.search) return ev.search;
+  // Runtime events (link analysis) carry no prebuilt field; build one
+  // from the fields they have.
   const sourceText = (ev.sources || []).map(s =>
     [s.topic, s.topic_en, s.outlet, s.outlet_en, s.url].join(' ')).join(' ');
   return (ev.title + ' ' + (ev.title_en || '') + ' ' +
@@ -326,15 +334,27 @@ function eventHaystack(ev) {
           sourceText).toLowerCase();
 }
 function matchEvents(q) {
-  q = q.trim().toLowerCase();
-  if (!q) return EVENTS.slice();
-  return EVENTS.filter(ev => eventHaystack(ev).includes(q));
+  const tokens = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return EVENTS.slice();
+  const scored = [];
+  EVENTS.forEach((ev, idx) => {
+    const hay = eventHaystack(ev);
+    if (!tokens.every(tok => hay.includes(tok))) return;
+    const titleHay = (ev.title + ' ' + (ev.title_en || '')).toLowerCase();
+    const headHay = titleHay + ' ' + (ev.topic || []).join(' ') + ' ' +
+      (ev.topic_en || []).join(' ');
+    const tier = tokens.every(tok => titleHay.includes(tok)) ? 0
+      : tokens.every(tok => headHay.includes(tok)) ? 1 : 2;
+    scored.push({ ev, tier, idx });
+  });
+  scored.sort((a, b) => (a.tier - b.tier) || (a.idx - b.idx));
+  return scored.map(s => s.ev);
 }
 function pickEvent(id) {
-  const ev = EVENTS.find(e => e.id === id);
-  if (ev) searchInput.value = loc(ev, 'title');
+  // Keep the user's typed query in the box; only the address changes.
   searchDrop.style.display = 'none';
   if (typeof resetWarn === 'function') resetWarn();
+  pushEventUrl(id);
   render(id);
 }
 function refreshSearch() {
@@ -384,7 +404,7 @@ searchInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     const matches = matchEvents(searchInput.value);
     if (matches.length) pickEvent(matches[0].id);
-    else if (typeof analyzeLink === 'function') analyzeLink(searchInput.value.trim());
+    else if (looksLikeUrl(searchInput.value.trim()) && typeof analyzeLink === 'function') analyzeLink(searchInput.value.trim());
   }
   if (e.key === 'Escape') searchDrop.style.display = 'none';
 });
@@ -408,6 +428,22 @@ function setReqStatus(text, cls) {
   st.textContent = text;
   st.className = 'req-status' + (cls ? ' ' + cls : '');
 }
+function pollVerdict(key, tries) {
+  if (tries <= 0) { setReqStatus(t('req_done'), 'ok'); return; }
+  fetch('api/request-status?key=' + encodeURIComponent(key))
+    .then(r => r.json())
+    .then(v => {
+      if (!v.ok) { setReqStatus(t('req_done'), 'ok'); return; }
+      if (v.status === 'accepted') { setReqStatus(t('req_done'), 'ok'); return; }
+      if (v.status === 'rejected') {
+        const reason = LANG === 'en' ? (v.reason_en || v.reason_ko) : (v.reason_ko || v.reason_en);
+        setReqStatus(t('req_not_registrable') + (reason ? ' ' + reason : ''), 'err');
+        return;
+      }
+      setTimeout(() => pollVerdict(key, tries - 1), 10000);
+    })
+    .catch(() => { setReqStatus(t('req_done'), 'ok'); });
+}
 async function sendRequest() {
   const link = document.getElementById('reqLink').value.trim();
   const email = document.getElementById('reqEmail').value.trim();
@@ -428,7 +464,10 @@ async function sendRequest() {
       body: JSON.stringify({ url: link, email: email, note: note }),
     });
     const data = await r.json();
-    if (data.ok) setReqStatus(t('req_done'), 'ok');
+    if (data.ok && data.key) {
+      setReqStatus(t('req_checking'), '');
+      pollVerdict(data.key, 30);
+    } else if (data.ok) setReqStatus(t('req_done'), 'ok');
     else setReqStatus(t('req_fail'), 'err');
   } catch (e) {
     setReqStatus(t('req_fail'), 'err');
@@ -494,8 +533,19 @@ function legendLayout() {
   };
 }
 function markerLabel(mk) { return LANG === 'en' ? (mk.label_en || mk.label) : mk.label; }
+function pushEventUrl(id) {
+  if (id === 'analyzed-link') return;
+  const u = new URL(window.location.href);
+  u.searchParams.set('event', id);
+  history.pushState(null, '', u);
+}
 function render(id) {
   currentId = id;
+  if (id !== 'analyzed-link') {
+    const u = new URL(window.location.href);
+    u.searchParams.set('event', id);
+    history.replaceState(null, '', u);
+  }
   const card = document.getElementById('eventCard');
   card.style.display = 'block';
   const evForAlarm = EVENTS.find(e => e.id === id);
@@ -750,6 +800,25 @@ document.getElementById('langBtn').addEventListener('click', () => {
   applyI18n();
 });
 applyI18n();
+// Deep link: ?event=<id> opens that event on load, and back/forward
+// follows the URL. Clicking an event button writes the id into the
+// URL (see pushEventUrl); render() keeps it in sync with replaceState.
+(function () {
+  const deepId = new URLSearchParams(window.location.search).get('event');
+  if (deepId && EVENTS.some(e => e.id === deepId)) {
+    const ev = EVENTS.find(e => e.id === deepId);
+    searchInput.value = loc(ev, 'title');
+    render(deepId);
+  }
+})();
+window.addEventListener('popstate', () => {
+  const id = new URLSearchParams(window.location.search).get('event');
+  if (id && EVENTS.some(e => e.id === id)) {
+    const ev = EVENTS.find(e => e.id === id);
+    searchInput.value = loc(ev, 'title');
+    render(id);
+  }
+});
 </script>
 <script>
 // Link analysis: a pasted article link that is not a registered event
@@ -1090,7 +1159,12 @@ function buildAnalyzed(parsed, url, outlet) {
     note: ANA_STR.ko.note, note_en: ANA_STR.en.note,
     sources: [{ outlet: outlet[0], outlet_en: outlet[1],
                 date: anaFmt(d), date_en: anaFmt(d),
-                topic: parsed.title || url, topic_en: parsed.title || url, url: url }]
+                topic: parsed.title || url, topic_en: parsed.title || url, url: url }],
+    // Searchable text includes the article body, so any word from the
+    // article finds this card, the same as the prebuilt events.
+    search: (shortTitle + ' ' + topics.join(' ') + ' ' + verdict + ' ' +
+      stats + ' ' + (parsed.title || '') + ' ' +
+      parsed.body.slice(0, 8000)).toLowerCase()
   };
 }
 const PEER_LABELS = {
@@ -1438,7 +1512,7 @@ async function analyzeLink(rawUrl) {
   EVENTS.push(ev);
   buildButtons();
   searchDrop.style.display = 'none';
-  searchInput.value = parsed.title || url;
+  if (parsed.title) searchInput.value = parsed.title;
   setAnaStatus(null);
   window.__anaRunning = false;
   render('analyzed-link');
